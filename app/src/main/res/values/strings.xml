@@ -1,0 +1,75 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <string name="app_name">TidyNote</string>
+    <string name="app_name_full">NotaRapi</string>
+    <string name="scan_receipt">Pindai struk</string>
+    <string name="view_history">Riwayat</string>
+    <string name="monthly_summary">Ringkasan bulanan</string>
+    <string name="export_csv">Ekspor CSV</string>
+    <string name="save">Simpan</string>
+    <string name="cancel">Batal</string>
+    <string name="retake">Scan ulang</string>
+    <string name="fix_with_ai">Perbaiki dengan AI</string>
+    <string name="total_this_month">Total bulan ini</string>
+    <string name="receipts_to_review">Struk perlu diperiksa</string>
+    <string name="recent_receipts">Transaksi terbaru</string>
+    <string name="merchant">Merchant</string>
+    <string name="merchant_name">Nama merchant</string>
+    <string name="npwp">NPWP</string>
+    <string name="date">Tanggal</string>
+    <string name="date_format_hint">dd/MM/yyyy</string>
+    <string name="total">Total</string>
+    <string name="items">Item</string>
+    <string name="category">Kategori</string>
+    <string name="tax">Pajak (PPN)</string>
+    <string name="discount">Diskon</string>
+    <string name="subtotal">Subtotal</string>
+    <string name="grand_total">Grand Total</string>
+    <string name="ocr_text">Teks OCR</string>
+    <string name="confidence">Confidence</string>
+    <string name="no_receipts">Belum ada struk</string>
+    <string name="scan_first">Pindai struk pertama Anda</string>
+    <string name="delete">Hapus</string>
+    <string name="edit">Edit</string>
+    <string name="duplicate">Duplikasi</string>
+    <string name="share">Bagikan</string>
+    <string name="search">Cari</string>
+    <string name="filter">Filter</string>
+    <string name="settings">Pengaturan</string>
+    <string name="cloud_ai">Bantuan AI Cloud</string>
+    <string name="cloud_ai_summary">Kirim teks OCR ke server untuk ekstraksi lebih akurat</string>
+    <string name="currency">Mata uang</string>
+    <string name="currency_idr">IDR (Rupiah)</string>
+    <string name="privacy">Privasi</string>
+    <string name="about">Tentang</string>
+    <string name="version">Versi</string>
+    <string name="delete_all_data">Hapus semua data</string>
+    <string name="delete_all_data_confirm">Yakin? Semua struk dan gambar akan terhapus permanen.</string>
+
+    <!-- Scan/Review strings -->
+    <string name="review_scan">Review Scan</string>
+    <string name="place_receipt">Letakkan struk di permukaan datar</string>
+    <string name="auto_detect">Scanner akan otomatis mendeteksi dan memotongnya</string>
+    <string name="open_scanner">Buka Scanner</string>
+    <string name="pick_from_gallery">Pilih dari Galeri</string>
+    <string name="scan_mode_offline">Mode offline — data tidak keluar perangkat</string>
+    <string name="edit_manually">Edit Manual</string>
+    <string name="scanned_receipt">Struk Terpindai</string>
+    <string name="edit_values">Nilai otomatis — edit jika perlu</string>
+    <string name="receipt_image">Gambar Struk</string>
+    <string name="rescan">Scan Ulang</string>
+    <string name="back">Kembali</string>
+    <string name="add_item">Tambah item</string>
+    <string name="invoice_number">No. Invoice</string>
+    <string name="totals">Total</string>
+
+    <!-- Onboarding strings -->
+    <string name="onboarding_subtitle">Pencatat belanja offline-first untuk UMKM Indonesia</string>
+    <string name="onboarding_feature_1">📷 Scan struk dengan ML Kit (offline)</string>
+    <string name="onboarding_feature_2">🇮🇩 Parser Indonesia: IDR, NPWP, PPN 11%</string>
+    <string name="onboarding_feature_3">🔒 Data tetap di perangkat, tanpa akun</string>
+    <string name="get_started">Mulai</string>
+
+    <!-- Review strings -->
+    <string name="review_title">Review Struk</string>
+    <string name="clear">Bersihkan</string>
+</resources>
