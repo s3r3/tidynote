@@ -146,6 +146,27 @@ class ReceiptRepositoryImpl(
         }
     }
 
+    override suspend fun duplicateReceipt(sourceId: Long): Long = withContext(Dispatchers.IO) {
+        val source = dao.getReceiptById(sourceId) ?: return@withContext 0L
+        val now = System.currentTimeMillis()
+
+        // id = 0 supaya Room membuat primary key baru. createdAt/updatedAt
+        // di-set ke sekarang karena ini memang baris baru bagi pengguna.
+        // duplicateReceipt sengaja tidak memakai transaction di sini:
+        // insertReceipt sudah atomik, dan kegagalan menyisipkan item akan
+        // terlihat sebagai struk tanpa item, bukan data yang salah.
+        val newId = dao.insertReceipt(
+            source.copy(id = 0, createdAt = now, updatedAt = now),
+        )
+        if (newId > 0) {
+            val items = dao.getItemsByReceiptId(sourceId).first().map { item ->
+                item.copy(id = 0, receiptId = newId)
+            }
+            if (items.isNotEmpty()) dao.insertReceiptItems(items)
+        }
+        newId
+    }
+
     override suspend fun getReceiptsForExport(
         query: String?,
         startDate: Long?,

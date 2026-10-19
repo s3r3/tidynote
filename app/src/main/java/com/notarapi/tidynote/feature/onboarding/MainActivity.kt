@@ -161,6 +161,8 @@ class MainActivity : ComponentActivity() {
                         }
                         composable("detail/{id}") { backStackEntry ->
                             val id = backStackEntry.arguments?.getString("id")?.toLongOrNull() ?: 0L
+                            val detailScope = rememberCoroutineScope()
+                            val repository: ReceiptRepository = org.koin.compose.koinInject()
                             DetailScreen(
                                 receiptId = id,
                                 onBack = { navController.popBackStack() },
@@ -170,6 +172,38 @@ class MainActivity : ComponentActivity() {
                                         putExtra(android.content.Intent.EXTRA_TEXT, text)
                                     }
                                     this@MainActivity.startActivity(android.content.Intent.createChooser(intent, "Bagikan struk"))
+                                },
+                                // FileProvider sudah terpasang di manifest dan
+                                // res/xml/file_paths.xml sudah mendeklarasikan
+                                // direktori backups; tinggal dipakai. Tanpa
+                                // FLAG_GRANT_READ_URI_PERMISSION aplikasi penerima
+                                // tidak punya izin membaca file kita.
+                                onShareImage = { path ->
+                                    runCatching {
+                                        val file = java.io.File(path)
+                                        val uri = androidx.core.content.FileProvider.getUriForFile(
+                                            this@MainActivity,
+                                            "${packageName}.fileprovider",
+                                            file,
+                                        )
+                                        val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                            type = "image/jpeg"
+                                            putExtra(android.content.Intent.EXTRA_STREAM, uri)
+                                            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                        }
+                                        this@MainActivity.startActivity(
+                                            android.content.Intent.createChooser(intent, "Bagikan gambar struk"),
+                                        )
+                                    }
+                                },
+                                onDuplicate = { sourceId ->
+                                    detailScope.launch {
+                                        val newId = repository.duplicateReceipt(sourceId)
+                                        if (newId > 0) {
+                                            navController.popBackStack()
+                                            navController.navigate("detail/$newId")
+                                        }
+                                    }
                                 },
                             )
                         }

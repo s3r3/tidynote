@@ -13,6 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
@@ -47,7 +48,15 @@ import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DetailScreen(receiptId: Long, onBack: () -> Unit, onShare: (String) -> Unit) {
+fun DetailScreen(
+    receiptId: Long,
+    onBack: () -> Unit,
+    onShare: (String) -> Unit,
+    /** Bagikan berkas gambarnya, bukan teks. */
+    onShareImage: (String) -> Unit = {},
+    /** Duplikat struk ini sebagai baris baru, lalu buka hasilnya. */
+    onDuplicate: (Long) -> Unit = {},
+) {
     val repository: ReceiptRepository = koinInject()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -70,11 +79,23 @@ fun DetailScreen(receiptId: Long, onBack: () -> Unit, onShare: (String) -> Unit)
                     }
                 }) { Icon(Icons.Default.Check, contentDescription = "Tandai sudah diperiksa") }
             }
+            val imagePath = data?.let { d -> d.images.firstOrNull()?.imagePath ?: d.receipt.imagePath }
+            if (!imagePath.isNullOrBlank() && File(imagePath).exists()) {
+                IconButton(onClick = { onShareImage(imagePath) }) {
+                    Icon(Icons.Default.Share, contentDescription = "Bagikan gambar struk")
+                }
+            }
             IconButton(onClick = {
                 val d = data ?: return@IconButton
                 val text = "Struk ${d.merchant?.name ?: "-"} ${formatCurrency(d.receipt.totalMinor ?: 0)} ${formatDate(d.receipt.transactionDate)}"
                 onShare(text)
             }) { Icon(Icons.Default.Share, contentDescription = "Bagikan") }
+            // R.string.duplicate sudah lama ada di strings.xml tapi tombolnya
+            // tidak pernah dibuat. Berguna untuk struk berulang dari merchant sama.
+            IconButton(onClick = {
+                val d = data ?: return@IconButton
+                scope.launch { onDuplicate(d.receipt.id) }
+            }) { Icon(Icons.Default.ContentCopy, contentDescription = "Duplikat struk") }
             IconButton(onClick = { confirmDelete = true }) { Icon(Icons.Default.Delete, contentDescription = "Hapus") }
         })
     }) { padding ->

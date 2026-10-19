@@ -35,6 +35,15 @@ interface ReceiptRepository {
     suspend fun getTotalThisMonth(startOfMonth: Long): Long
     suspend fun updateReviewStatus(id: Long, status: String)
 
+    /**
+     * Salin struk beserta item-itemnya sebagai baris baru.
+     * Mengembalikan id struk baru, atau 0 kalau sumbernya tidak ditemukan.
+     * Gambar sengaja tidak diduplikasi: file JPEG-nya milik struk asal, menyalin
+     * baris scan_images akan membuat dua baris menunjuk file yang sama dan
+     * menghapus salah satunya akan menghapus gambar milik yang lain.
+     */
+    suspend fun duplicateReceipt(sourceId: Long): Long
+
     /** Ekspor memakai filter yang sama dengan layar; default menjaga pemanggil lama tetap jalan. */
     suspend fun getReceiptsForExport(
         query: String? = null,
