@@ -37,7 +37,9 @@ class TidyNoteApplication : Application() {
     companion object {
         val appModule = module {
             single<ReceiptDao> { AppDatabase.get(get()).receiptDao() }
-            single<ReceiptRepository> { ReceiptRepositoryImpl(get()) }
+            // get() kedua = Context (Android). Diperlukan supaya deleteAll() bisa
+            // ikut menghapus file gambar struk, bukan cuma baris database.
+            single<ReceiptRepository> { ReceiptRepositoryImpl(get(), get()) }
             single { com.notarapi.tidynote.core.prefs.AppPreferences(get()) }
             single { OcrHelper() }
             single { ReceiptParser() }

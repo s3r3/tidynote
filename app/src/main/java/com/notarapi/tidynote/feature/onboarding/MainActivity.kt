@@ -77,8 +77,15 @@ class MainActivity : ComponentActivity() {
                         }
                         composable("review") {
                             val draftJson = DraftHolder.currentDraft ?: ""
+                            // DraftHolder cuma `var` global berisi string JSON: dia bisa
+                            // bertahan melewati process death sementara nav back stack
+                            // tidak, dan skema ReceiptDraft bisa bergeser antar versi.
+                            // Deserialisasi tanpa guard melempar SerializationException
+                            // DI DALAM composition -> aplikasi crash. Fallback ke draft
+                            // kosong: user isi manual, lebih baik daripada mati.
                             val draft = if (draftJson.isNotEmpty()) {
-                                json.decodeFromString<ReceiptDraft>(draftJson)
+                                runCatching { json.decodeFromString<ReceiptDraft>(draftJson) }
+                                    .getOrNull() ?: ReceiptDraft()
                             } else {
                                 ReceiptDraft()
                             }

@@ -83,6 +83,19 @@ data class ReceiptDraft(
             }
         }
 
+    /**
+     * Wajib diperiksa manusia bila confidence rendah ATAU hitungan tidak cocok.
+     *
+     * `FieldConfidence.needsReview` memakai RATA-RATA, jadi struk yang gagal
+     * rekonsiliasi tetap bisa lolos: ReceiptValidator hanya menurunkan
+     * confidence.total ke 0.5, sehingga {merchant .9, date .9, items .8, total .5}
+     * rata-ratanya 0.8 dan struk disimpan REVIEWED padahal ReviewScreen
+     * menampilkan peringatan "Selisih hitung". Menyertakan isReconciled membuat
+     * status tersimpan sejalan dengan yang dilihat user.
+     */
+    val needsReview: Boolean
+        get() = confidence.needsReview || !isReconciled
+
     fun copyWithDefaults(): ReceiptDraft {
         val computedTotal = totalMinor ?: (itemSumMinor + (taxMinor ?: 0) - (discountMinor ?: 0))
         return copy(totalMinor = computedTotal)

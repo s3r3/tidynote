@@ -18,7 +18,12 @@ android {
 
     defaultConfig {
         applicationId = "com.notarapi.tidynote"
-        minSdk = 26
+        // 29 (Android 10): MediaStore.Downloads + MediaColumns.RELATIVE_PATH
+        // baru ada di API 29. Di bawah itu ekspor CSV/PDF melempar NoSuchFieldError
+        // — itu Error, bukan Exception, jadi lolos dari catch(Exception) di
+        // CsvExporter/PdfExporter dan bikin aplikasi crash. Nol referensi minSdk
+        // di source, jadi tidak ada cabang kode yang perlu dibersihkan.
+        minSdk = 29
         targetSdk = 36
         versionCode = 1
         versionName = "1.0.0"

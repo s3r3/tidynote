@@ -19,8 +19,8 @@ class PdfExporter {
         receipts: List<ReceiptRow>,
         contentResolver: ContentResolver
     ): Result<Uri> = withContext(Dispatchers.IO) {
+        val document = PdfDocument()
         try {
-            val document = PdfDocument()
             val pageWidth = 595
             val pageHeight = 842
             val margin = 40
@@ -80,14 +80,19 @@ class PdfExporter {
                 put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
             }
             val uri = contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
-                ?: return@withContext Result.failure(Exception("Gagal membuat file"))
-            contentResolver.openOutputStream(uri)?.use { out ->
-                document.writeTo(out)
-            }
-            document.close()
+                ?: throw IllegalStateException("Gagal membuat file")
+            // openOutputStream bisa null (provider menolak). Dulu ini dilaporkan
+            // sukses padahal file tidak pernah ditulis.
+            val out = contentResolver.openOutputStream(uri)
+                ?: throw IllegalStateException("Gagal membuka file untuk ditulis")
+            out.use { document.writeTo(it) }
             Result.success(uri)
         } catch (e: Exception) {
             Result.failure(e)
+        } finally {
+            // Wajib: PdfDocument menyimpan native page memory. Tanpa finally,
+            // setiap jalur gagal (insert null, stream null, write error) membocorkannya.
+            document.close()
         }
     }
 }

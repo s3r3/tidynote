@@ -30,12 +30,14 @@ class CsvExporter {
             }
             
             val uri = contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
-                ?: return@withContext Result.failure(Exception("Failed to create file"))
-            
-            contentResolver.openOutputStream(uri)?.use { outputStream ->
-                outputStream.write(csv.toByteArray())
-            }
-            
+                ?: throw IllegalStateException("Gagal membuat file")
+
+            // openOutputStream bisa null (provider menolak). Dulu ini dilaporkan
+            // sukses padahal file tidak pernah ditulis.
+            val out = contentResolver.openOutputStream(uri)
+                ?: throw IllegalStateException("Gagal membuka file untuk ditulis")
+            out.use { it.write(csv.toByteArray()) }
+
             Result.success(uri)
         } catch (e: Exception) {
             Result.failure(e)

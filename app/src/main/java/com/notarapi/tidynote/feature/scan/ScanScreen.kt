@@ -73,7 +73,6 @@ import com.notarapi.tidynote.extraction.scanner.ScannerHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
 import java.io.FileOutputStream
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
@@ -380,9 +379,9 @@ private fun androidx.compose.foundation.layout.RowScope.BottomNavItem(
 }
 
 private fun saveBitmapToFile(context: Context, bitmap: Bitmap): String {
-    val dir = File(context.filesDir, "receipts")
-    if (!dir.exists()) dir.mkdirs()
-    val file = File(dir, "receipt_${System.currentTimeMillis()}.jpg")
+    // Path lewat ReceiptImages supaya penulis & pembaca (Settings, deleteAll)
+    // tidak bisa lagi memakai direktori berbeda seperti sebelumnya.
+    val file = com.notarapi.tidynote.core.storage.ReceiptImages.newFile(context)
     FileOutputStream(file).use { out ->
         bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
     }

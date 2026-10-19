@@ -14,11 +14,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asExecutor
 import kotlinx.coroutines.launch
 
+// v1 -> v2 tidak mengubah skema. Index `rawOcrText` dibuang karena:
+//  (1) tidak dideklarasikan di ReceiptEntity -> Room membandingkan TableInfo
+//      hasil baca DB vs skema; index ekstra bikin validasi gagal dan SETIAP
+//      akses DB melempar IllegalStateException (crash permanen), dan
+//  (2) tidak berguna: query-nya LIKE '%x%' tidak pernah memakai B-tree.
+// Migration tetap didaftarkan supaya Room mengizinkan jalur upgrade 1 -> 2;
+// tanpa itu Room melempar "A migration from 1 to 2 was required but not found".
 val MIGRATION_1_2 = object : Migration(1, 2) {
-    override fun migrate(db: SupportSQLiteDatabase) {
-        // v2: indeks tambahan untuk pencarian cepat (§6), tanpa hapus data.
-        db.execSQL("CREATE INDEX IF NOT EXISTS `index_receipts_rawOcrText` ON `receipts` (`rawOcrText`)")
-    }
+    override fun migrate(db: SupportSQLiteDatabase) = Unit
 }
 
 @Database(

@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PrivacyTip
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -40,6 +41,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -432,12 +434,7 @@ fun SettingsScreen(onNavigateBack: () -> Unit) {
                             Text(stringResource(R.string.delete_all_data_confirm), fontSize = 12.sp, color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         Button(
-                            onClick = {
-                                scope.launch {
-                                    repository.deleteAll()
-                                    storageSize = calculateStorageSize(context)
-                                }
-                            },
+                            onClick = { showDeleteConfirm = true },
                             enabled = !isDeleting,
                             colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.error)
                         ) {
@@ -475,19 +472,64 @@ fun SettingsScreen(onNavigateBack: () -> Unit) {
             }
         }
     }
+
+    // Dulu tombol "Hapus semua data" langsung menghapus tanpa konfirmasi:
+    // showDeleteConfirm dideklarasikan tapi tidak pernah dibaca, dan
+    // delete_all_data_confirm cuma dipajang sebagai teks statis. Data yang
+    // terhapus tidak bisa dikembalikan, jadi konfirmasi eksplisit wajib.
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text(stringResource(R.string.delete_all_data)) },
+            text = { Text(stringResource(R.string.delete_all_data_confirm)) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteConfirm = false
+                        isDeleting = true
+                        scope.launch {
+                            try {
+                                repository.deleteAll()
+                                storageSize = calculateStorageSize(context)
+                            } finally {
+                                isDeleting = false
+                            }
+                        }
+                    },
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                        containerColor = androidx.compose.material3.MaterialTheme.colorScheme.error,
+                    ),
+                ) { Text(stringResource(R.string.delete_all_data)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
 }
 
 private suspend fun calculateStorageSize(context: Context): String = withContext(Dispatchers.IO) {
     val dbFile = context.getDatabasePath("tidynote-db")
-    val imagesDir = context.getDir("receipts", Context.MODE_PRIVATE)
-    var totalSize = dbFile.length()
-    if (imagesDir.exists()) {
-        imagesDir.walkTopDown().forEach { totalSize += it.length() }
-    }
+    // WAL + SHM ikut dihitung: Room berjalan dalam mode WAL, dan keduanya bisa
+    // sebesar database itu sendiri. Dulu hanya file utama yang dihitung.
+    val dbBytes = listOf(
+        dbFile,
+        java.io.File("${dbFile.path}-wal"),
+        java.io.File("${dbFile.path}-shm"),
+    ).sumOf { it.length() }
+
+    // Dulu di sini memakai context.getDir("receipts") yang menghasilkan
+    // files/app_receipts, sedangkan ScanScreen menulis ke files/receipts.
+    // Direktorinya beda, jadi ukuran gambar struk tidak pernah ikut terhitung.
+    val imageBytes = com.notarapi.tidynote.core.storage.ReceiptImages.sizeBytes(context)
+
+    val totalSize = dbBytes + imageBytes
     when {
-        totalSize < 1024 -> "${totalSize} B"
-        totalSize < 1024 * 1024 -> "${(totalSize / 1024).toString()} KB"
-        else -> "${(totalSize / (1024 * 1024)).toString()} MB"
+        totalSize < 1024 -> "$totalSize B"
+        totalSize < 1024 * 1024 -> "${totalSize / 1024} KB"
+        else -> "${totalSize / (1024 * 1024)} MB"
     }
 }
 

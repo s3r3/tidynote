@@ -1,8 +1,10 @@
 package com.notarapi.tidynote.data.receipt
 
+import android.content.Context
 import com.notarapi.tidynote.core.database.ReceiptDao
 import com.notarapi.tidynote.core.database.ReceiptRow
 import com.notarapi.tidynote.core.model.*
+import com.notarapi.tidynote.core.storage.ReceiptImages
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -10,14 +12,31 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 
-class ReceiptRepositoryImpl(private val dao: ReceiptDao) : ReceiptRepository {
+class ReceiptRepositoryImpl(
+    private val dao: ReceiptDao,
+    private val context: Context,
+) : ReceiptRepository {
+
+    /**
+     * Ambil id merchant, buat kalau belum ada.
+     *
+     * `insertMerchant` memakai OnConflictStrategy.IGNORE, yang mengembalikan **-1**
+     * saat nama sudah ada (kolom `name` unik). -1 bukan id valid, dan karena Room
+     * menyalakan `PRAGMA foreign_keys = ON`, menulis receipt dengan merchantId = -1
+     * melempar SQLiteConstraintException. Terjadi kalau dua penyimpanan berjalan
+     * bersamaan (mis. Save ditekan dua kali): dua-duanya melihat null, dua-duanya
+     * menyisipkan, satu kalah dan dapat -1. Jadi kalau hasil insert <= 0, baca ulang.
+     */
+    private suspend fun resolveMerchantId(name: String?): Long? {
+        if (name.isNullOrBlank()) return null
+        dao.getMerchantByName(name)?.let { return it.id }
+        val inserted = dao.insertMerchant(MerchantEntity(name = name))
+        if (inserted > 0) return inserted
+        return dao.getMerchantByName(name)?.id
+    }
 
     override suspend fun saveDraft(draft: ReceiptDraft): Long = withContext(Dispatchers.IO) {
-        val merchantId = draft.merchantName?.let { name ->
-            dao.getMerchantByName(name)?.id ?: dao.insertMerchant(
-                MerchantEntity(name = name)
-            )
-        }
+        val merchantId = resolveMerchantId(draft.merchantName)
 
         val receipt = ReceiptEntity(
             merchantId = merchantId,
@@ -31,7 +50,7 @@ class ReceiptRepositoryImpl(private val dao: ReceiptDao) : ReceiptRepository {
             rawOcrText = draft.rawOcrText,
             source = draft.source.name,
             confidence = draft.confidence.average,
-            reviewStatus = if (draft.confidence.needsReview) "PENDING" else "REVIEWED",
+            reviewStatus = if (draft.needsReview) "PENDING" else "REVIEWED",
             imagePath = draft.imagePath
         )
 
@@ -78,6 +97,13 @@ class ReceiptRepositoryImpl(private val dao: ReceiptDao) : ReceiptRepository {
         dao.deleteAllImages()
         dao.deleteAllItems()
         dao.deleteAllReceipts()
+        // Baris dulu, file belakangan. Kalau penghapusan file gagal, yang tersisa
+        // adalah file yatim yang tidak terlihat user; kebalikannya akan meninggalkan
+        // baris yang menunjuk gambar yang sudah hilang. Gambar tidak pernah dihapus
+        // di sini sebelumnya, jadi "Hapus semua data" selalu menyisakan sampah.
+        // Unit: kegagalan hapus file tidak boleh menggagalkan hapus data itu sendiri.
+        runCatching { ReceiptImages.deleteAll(context) }
+        Unit
     }
 
     override suspend fun getReceiptById(id: Long): ReceiptEntity? = withContext(Dispatchers.IO) {
@@ -141,9 +167,7 @@ class ReceiptRepositoryImpl(private val dao: ReceiptDao) : ReceiptRepository {
     override suspend fun restoreFromBackup(rows: List<Pair<ReceiptDraft, String>>): Int = withContext(Dispatchers.IO) {
         var count = 0
         for ((draft, status) in rows) {
-            val merchantId = draft.merchantName?.let { name ->
-                dao.getMerchantByName(name)?.id ?: dao.insertMerchant(MerchantEntity(name = name))
-            }
+            val merchantId = resolveMerchantId(draft.merchantName)
             val entity = ReceiptEntity(
                 merchantId = merchantId,
                 transactionDate = draft.transactionDate?.toEpochMilli(),

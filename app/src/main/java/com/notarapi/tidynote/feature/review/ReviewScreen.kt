@@ -58,6 +58,13 @@ import com.notarapi.tidynote.core.util.formatCurrency
 import com.notarapi.tidynote.core.util.formatDate
 import com.notarapi.tidynote.core.util.parseRupiahInput
 import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,7 +75,13 @@ fun ReviewScreen(
     onFixWithAi: ((String) -> Unit)? = null,
 ) {
     var editableDraft by remember(draft) { mutableStateOf(draft) }
-    var showItemEditor by remember { mutableStateOf<ReceiptItemDraft?>(null) }
+    // Index item yang sedang diedit, atau null kalau dialog tertutup.
+    // Dulu ini menyimpan objek ReceiptItemDraft dan mencocokkannya dengan
+    // `==`, sehingga dua baris identik (mis. "Aqua 1x2000" dua kali) dianggap
+    // satu item: mengedit satu baris menimpa keduanya, dan menghapus satu
+    // membuang yang lain. Index selalu menunjuk baris yang benar.
+    var editingItemIndex by remember { mutableStateOf<Int?>(null) }
+    var showItemEditor by remember { mutableStateOf(false) }
     var isNewItem by remember { mutableStateOf(false) }
     var showAiConfirm by remember { mutableStateOf(false) }
 
@@ -120,31 +133,54 @@ fun ReviewScreen(
             }
             item { ItemsSection(
                 items = editableDraft.items,
-                onItemEdit = {
+                onItemEdit = { index ->
                     isNewItem = false
-                    showItemEditor = it
+                    editingItemIndex = index
+                    showItemEditor = true
                 },
-                onItemDelete = { editableDraft = editableDraft.copy(items = editableDraft.items - it) },
+                onItemDelete = { index ->
+                    editableDraft = editableDraft.copy(
+                        items = editableDraft.items.filterIndexed { i, _ -> i != index },
+                    )
+                },
                 onAddItem = {
                     isNewItem = true
-                    showItemEditor = ReceiptItemDraft()
+                    editingItemIndex = null
+                    showItemEditor = true
                 }
             ) }
             item { TotalsSection(draft = editableDraft, onEdit = { editableDraft = it }) }
         }
     }
 
-    showItemEditor?.let { editing ->
+    if (showItemEditor) {
+        // Item baru mulai dari kosong; kalau mengedit, ambil isi baris yang
+        // ditunjuk index. Index bisa saja sudah tidak valid kalau daftar berubah
+        // (mis. item dihapus sementara dialog terbuka), jadi di-clamp.
+        val index = editingItemIndex
+        val editing = if (isNewItem || index == null) {
+            ReceiptItemDraft()
+        } else {
+            editableDraft.items.getOrNull(index) ?: ReceiptItemDraft()
+        }
         ItemEditorDialog(
             item = editing,
-            onDismiss = { showItemEditor = null },
+            onDismiss = {
+                showItemEditor = false
+                editingItemIndex = null
+            },
             onConfirm = { updated ->
-                editableDraft = if (isNewItem) {
+                editableDraft = if (isNewItem || index == null) {
                     editableDraft.copy(items = editableDraft.items + updated)
                 } else {
-                    editableDraft.copy(items = editableDraft.items.map { if (it == editing) updated else it })
+                    editableDraft.copy(
+                        items = editableDraft.items.mapIndexed { i, existing ->
+                            if (i == index) updated else existing
+                        },
+                    )
                 }
-                showItemEditor = null
+                showItemEditor = false
+                editingItemIndex = null
             }
         )
     }
@@ -233,7 +269,17 @@ fun DateSection(draft: ReceiptDraft, onEdit: (ReceiptDraft) -> Unit) {
             Spacer(modifier = Modifier.size(8.dp))
             TextField(
                 value = dateStr,
-                onValueChange = { dateStr = it },
+                // onEdit() dulu tidak pernah dipanggil di sini: user bisa mengetik
+                // tanggal dan nilainya hilang begitu Save ditekan, tanpa peringatan.
+                // Sekarang setiap ketikan yang berhasil di-parse langsung disimpan ke
+                // draft. Ketikan setengah jadi (mis. "12 Jan") sengaja TIDAK menimpa
+                // nilai lama supaya tanggal yang sudah valid tidak berubah jadi sampah.
+                onValueChange = {
+                    dateStr = it
+                    parseDateInput(it)?.let { parsed ->
+                        onEdit(draft.copy(transactionDate = parsed))
+                    }
+                },
                 label = { Text(stringResource(R.string.date_format_hint)) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
@@ -302,8 +348,10 @@ fun CategorySection(draft: ReceiptDraft, onEdit: (ReceiptDraft) -> Unit) {
 @Composable
 fun ItemsSection(
     items: List<ReceiptItemDraft>,
-    onItemEdit: (ReceiptItemDraft) -> Unit,
-    onItemDelete: (ReceiptItemDraft) -> Unit,
+    // Index, bukan objek: dua item yang isinya sama persis tetap harus bisa
+    // diedit/dihapus secara terpisah.
+    onItemEdit: (Int) -> Unit,
+    onItemDelete: (Int) -> Unit,
     onAddItem: () -> Unit
 ) {
     Card(
@@ -335,10 +383,10 @@ fun ItemsSection(
                         Text("${item.quantity} x ${formatCurrency(item.unitPriceMinor)}", fontSize = 12.sp, color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Row {
-                        IconButton(onClick = { onItemEdit(item) }) {
+                        IconButton(onClick = { onItemEdit(index) }) {
                             Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.edit))
                         }
-                        IconButton(onClick = { onItemDelete(item) }) {
+                        IconButton(onClick = { onItemDelete(index) }) {
                             Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete), tint = androidx.compose.material3.MaterialTheme.colorScheme.error)
                         }
                     }
@@ -501,4 +549,53 @@ fun ItemEditorDialog(
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
         }
     )
+}
+
+/**
+ * Parse input tanggal dari user. Mengembalikan null kalau belum bisa dibaca,
+ * supaya pemanggil tidak menimpa nilai lama dengan hasil yang salah.
+ *
+ * Menerima bentuk yang ditampilkan `formatDate` ("dd MMM yyyy, HH:mm") dan
+ * bentuk yang lebih longgar yang wajar diketik orang:
+ *   "12 Jan 2026, 14:30"  "12 Jan 2026"  "12/01/2026"  "2026-01-12"
+ * Jam dianggap 00:00 kalau tidak disebutkan.
+ */
+internal fun parseDateInput(raw: String, zone: ZoneId = ZoneId.systemDefault()): Instant? {
+    val text = raw.trim().replace(Regex("\\s+"), " ")
+    if (text.isEmpty()) return null
+
+    val locale = Locale.forLanguageTag("id-ID")
+    val dateTimeFormats = listOf("dd MMM yyyy, HH:mm", "dd MMM yyyy HH:mm", "dd/MM/yyyy HH:mm", "yyyy-MM-dd HH:mm")
+    val dateOnlyFormats = listOf("dd MMM yyyy", "dd/MM/yyyy", "yyyy-MM-dd")
+
+    for (pattern in dateTimeFormats) {
+        runCatching {
+            LocalDateTime.parse(text, DateTimeFormatter.ofPattern(pattern, locale))
+        }.getOrNull()?.let { return it.atZone(zone).toInstant() }
+    }
+    for (pattern in dateOnlyFormats) {
+        runCatching {
+            LocalDate.parse(text, DateTimeFormatter.ofPattern(pattern, locale))
+        }.getOrNull()?.let { return it.atStartOfDay(zone).toInstant() }
+    }
+    // "dd MMM yyyy" versi Indonesia (mis. "12 Jan 2026") tidak selalu cocok
+    // dengan Locale("id") karena nama bulan pendek bisa berbeda. Coba English
+    // sebagai jaring terakhir supaya "12 Jan 2026" tetap masuk.
+    for (pattern in dateOnlyFormats) {
+        runCatching {
+            LocalDate.parse(text, DateTimeFormatter.ofPattern(pattern, Locale.ENGLISH))
+        }.getOrNull()?.let { return it.atStartOfDay(zone).toInstant() }
+    }
+    for (pattern in dateTimeFormats) {
+        runCatching {
+            LocalDateTime.parse(text, DateTimeFormatter.ofPattern(pattern, Locale.ENGLISH))
+        }.getOrNull()?.let { return it.atZone(zone).toInstant() }
+    }
+    // Jam saja tidak masuk akal untuk struk, tapi "12 Jan 2026 14" masih mungkin.
+    runCatching {
+        LocalDate.parse(text, DateTimeFormatter.ofPattern("dd MMM yyyy", locale))
+            .atTime(LocalTime.MIDNIGHT).atZone(zone).toInstant()
+    }.getOrNull()?.let { return it }
+
+    return null
 }
