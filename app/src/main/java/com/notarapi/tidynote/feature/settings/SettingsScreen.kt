@@ -1,7 +1,6 @@
 package com.notarapi.tidynote.feature.settings
 
 import android.content.Context
-import android.content.SharedPreferences
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,16 +11,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Lock
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.material.icons.filled.Cloud
-import androidx.compose.material.icons.filled.CurrencyExchange
 import androidx.compose.material.icons.filled.DeleteForever
-import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PrivacyTip
 import androidx.compose.material.icons.filled.Settings
@@ -31,10 +27,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
@@ -80,8 +73,6 @@ fun SettingsScreen(onNavigateBack: () -> Unit) {
     var directApiKey by remember { mutableStateOf(getSavedDirectApiKey(context)) }
     var directBaseUrl by remember { mutableStateOf(getSavedDirectBaseUrl(context)) }
     var directModel by remember { mutableStateOf(getSavedDirectModel(context)) }
-    var selectedCurrency by remember { mutableStateOf(getSavedCurrency(context)) }
-    var currencyExpanded by remember { mutableStateOf(false) }
     var isDeleting by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var storageSize by remember { mutableStateOf("Menghitung...") }
@@ -108,8 +99,6 @@ fun SettingsScreen(onNavigateBack: () -> Unit) {
             }
         }
     }
-
-    val currencies = listOf("IDR", "USD", "EUR", "SGD")
 
     androidx.compose.runtime.LaunchedEffect(Unit) {
         storageSize = calculateStorageSize(context)
@@ -274,63 +263,6 @@ fun SettingsScreen(onNavigateBack: () -> Unit) {
                                 fontSize = 12.sp,
                                 color = androidx.compose.material3.MaterialTheme.colorScheme.error,
                                 modifier = Modifier.padding(top = 8.dp),
-                            )
-                        }
-                    }
-                }
-            }
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow
-                )
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.CurrencyExchange, contentDescription = null, tint = androidx.compose.material3.MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp).padding(end = 12.dp))
-                        Text(stringResource(R.string.currency), fontWeight = FontWeight.Bold, fontSize = 16.sp, color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface)
-                    }
-                    Spacer(Modifier.height(12.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Text(stringResource(R.string.currency), fontWeight = FontWeight.Bold)
-                            Text("Mata uang default untuk struk baru", fontSize = 12.sp, color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        androidx.compose.material3.ExposedDropdownMenuBox(
-                            expanded = currencyExpanded,
-                            onExpandedChange = { currencyExpanded = !currencyExpanded }
-                        ) {
-                            androidx.compose.material3.TextField(
-                                value = selectedCurrency,
-                                onValueChange = {},
-                                label = { Text(stringResource(R.string.currency)) },
-                                modifier = Modifier.width(120.dp).padding(start = 16.dp).menuAnchor(),
-                                readOnly = true,
-                                trailingIcon = { Icon(Icons.Default.ExpandMore, contentDescription = "Buka pilihan") }
-                            )
-                            androidx.compose.material3.DropdownMenu(
-                                expanded = currencyExpanded,
-                                onDismissRequest = { currencyExpanded = false },
-                                content = {
-                                    currencies.forEach { curr ->
-                                        androidx.compose.material3.DropdownMenuItem(
-                                            text = { Text(curr) },
-                                            onClick = {
-                                                selectedCurrency = curr
-                                                currencyExpanded = false
-                                                saveCurrency(context, curr)
-                                            }
-                                        )
-                                    }
-                                }
                             )
                         }
                     }
@@ -577,18 +509,6 @@ private fun saveDirectConfig(
         .putString("direct_api_key", apiKey.trim())
         .putString("direct_base_url", baseUrl.trim())
         .putString("direct_model", model.trim())
-        .apply()
-}
-
-private fun getSavedCurrency(context: Context): String {
-    return context.getSharedPreferences("tidynote_prefs", Context.MODE_PRIVATE)
-        .getString("currency", "IDR") ?: "IDR"
-}
-
-private fun saveCurrency(context: Context, currency: String) {
-    context.getSharedPreferences("tidynote_prefs", Context.MODE_PRIVATE)
-        .edit()
-        .putString("currency", currency)
         .apply()
 }
 
