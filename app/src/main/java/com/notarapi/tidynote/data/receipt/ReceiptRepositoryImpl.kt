@@ -124,11 +124,13 @@ class ReceiptRepositoryImpl(
 
     override fun getPendingReceipts(): Flow<List<ReceiptEntity>> = dao.getPendingReceipts()
 
-    override fun searchReceipts(query: String?): Flow<List<ReceiptEntity>> = dao.searchReceipts(query)
-
     override fun filterReceipts(
-        startDate: Long?, endDate: Long?, categoryId: Long?, reviewStatus: String?
-    ): Flow<List<ReceiptEntity>> = dao.filterReceipts(startDate, endDate, categoryId, reviewStatus)
+        search: String?,
+        startDate: Long?,
+        endDate: Long?,
+        categoryId: Long?,
+        reviewStatus: String?,
+    ): Flow<List<ReceiptEntity>> = dao.filterReceipts(search, startDate, endDate, categoryId, reviewStatus)
 
     override suspend fun getPendingCount(): Int = withContext(Dispatchers.IO) {
         dao.getPendingCount()
@@ -144,8 +146,17 @@ class ReceiptRepositoryImpl(
         }
     }
 
-    override suspend fun getReceiptsForExport(query: String?): List<ReceiptRow> = withContext(Dispatchers.IO) {
-        dao.searchReceiptsSync(query).map { receipt ->
+    override suspend fun getReceiptsForExport(
+        query: String?,
+        startDate: Long?,
+        endDate: Long?,
+        categoryId: Long?,
+        reviewStatus: String?,
+    ): List<ReceiptRow> = withContext(Dispatchers.IO) {
+        // Memakai query yang sama persis dengan daftar di layar. Dulu ekspor
+        // lewat searchReceiptsSync yang hanya peduli kata kunci, sehingga
+        // mengabaikan filter status/tanggal dan hasilnya beda dari yang dilihat user.
+        dao.filterReceipts(query, startDate, endDate, categoryId, reviewStatus).first().map { receipt ->
             val merchant = receipt.merchantId?.let { dao.getMerchantById(it) }
             ReceiptRow(receipt = receipt, merchant = merchant, images = emptyList())
         }

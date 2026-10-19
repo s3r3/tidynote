@@ -38,6 +38,7 @@ import com.notarapi.tidynote.R
 import com.notarapi.tidynote.core.util.formatCurrency
 import com.notarapi.tidynote.data.receipt.DashboardSummary
 import com.notarapi.tidynote.data.receipt.ReceiptRepository
+import kotlinx.coroutines.flow.collectLatest
 import org.koin.compose.koinInject
 import java.time.LocalDate
 import java.time.ZoneId
@@ -51,14 +52,20 @@ fun DashboardScreen(onNavigateBack: () -> Unit) {
         LocalDate.now().withDayOfMonth(1).atStartOfDay(zone).toInstant().toEpochMilli()
     }
     var summary by remember { mutableStateOf(DashboardSummary()) }
-    var isLoading by remember { mutableStateOf(true) }
 
+    // Dulu: LaunchedEffect(startOfMonth) dengan `try { ... } finally { isLoading =
+    // false }` TANPA catch. Exception dari database naik ke coroutine yang tidak
+    // ada penangkapnya -> aplikasi mati. Selain itu, karena kuncinya tidak pernah
+    // berubah, ringkasan tetap basi setelah user menyimpan atau menghapus struk.
+    // Sekarang ringkasan dihitung ulang setiap isi tabel berubah, dan kegagalan
+    // query tidak lagi menjatuhkan layar.
     LaunchedEffect(startOfMonth) {
-        isLoading = true
-        summary = try {
-            repository.getDashboardSummary(startOfMonth, null)
-        } finally {
-            isLoading = false
+        repository.getReceiptsPaged(50, 0).collectLatest {
+            summary = try {
+                repository.getDashboardSummary(startOfMonth, null)
+            } catch (_: Exception) {
+                DashboardSummary()
+            }
         }
     }
 
@@ -120,7 +127,9 @@ fun DashboardScreen(onNavigateBack: () -> Unit) {
                                 modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text("Kategori ${row.categoryId ?: "-"}")
+                                // Dulu menampilkan "Kategori ${row.categoryId}" — id
+                                // mentah dari database, bukan nama yang bisa dibaca.
+                                Text(row.categoryName ?: "Tanpa kategori")
                                 Text(formatCurrency(row.total), fontWeight = FontWeight.Medium)
                             }
                         }

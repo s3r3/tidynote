@@ -12,6 +12,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
@@ -57,6 +58,18 @@ fun DetailScreen(receiptId: Long, onBack: () -> Unit, onShare: (String) -> Unit)
         TopAppBar(title = { Text("Detail struk") }, navigationIcon = {
             IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Kembali") }
         }, actions = {
+            // updateReviewStatus sebelumnya tidak punya pemanggil sama sekali:
+            // begitu struk disimpan PENDING, tidak ada jalan keluar. Antrian
+            // "Periksa N struk" di Home karena itu tidak pernah selesai.
+            if (data?.receipt?.reviewStatus == "PENDING") {
+                IconButton(onClick = {
+                    val d = data ?: return@IconButton
+                    scope.launch {
+                        repository.updateReviewStatus(d.receipt.id, "REVIEWED")
+                        data = d.copy(receipt = d.receipt.copy(reviewStatus = "REVIEWED"))
+                    }
+                }) { Icon(Icons.Default.Check, contentDescription = "Tandai sudah diperiksa") }
+            }
             IconButton(onClick = {
                 val d = data ?: return@IconButton
                 val text = "Struk ${d.merchant?.name ?: "-"} ${formatCurrency(d.receipt.totalMinor ?: 0)} ${formatDate(d.receipt.transactionDate)}"

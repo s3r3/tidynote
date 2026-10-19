@@ -36,34 +36,37 @@ interface ReceiptDao {
     @Query("SELECT * FROM receipts WHERE reviewStatus = 'PENDING' ORDER BY transactionDate DESC")
     fun getPendingReceipts(): Flow<List<ReceiptEntity>>
 
+    /**
+     * Satu-satunya query pencarian/filter.
+     *
+     * Dulu ada `searchReceipts` (nama merchant ATAU OCR) DAN `filterReceipts`
+     * (tanggal/kategori/status), sementara layar Riwayat memfilter sendiri di
+     * memori hanya atas rawOcrText + totalMinor. Akibatnya daftar di layar dan
+     * hasil ekspor memberi jawaban berbeda untuk kata kunci yang sama, dan
+     * ekspor mengabaikan filter status/tanggal sepenuhnya.
+     *
+     * CAST(totalMinor AS TEXT): user terbiasa mengetik "25000" untuk menemukan
+     * struk. Tanpa cast ini perilaku tersebut hilang.
+     */
     @Query("""
         SELECT r.* FROM receipts r
         LEFT JOIN merchants m ON r.merchantId = m.id
-        WHERE (:search IS NULL OR :search = '' OR m.name LIKE '%' || :search || '%'
-            OR r.rawOcrText LIKE '%' || :search || '%')
+        WHERE (:search IS NULL OR :search = ''
+                OR m.name LIKE '%' || :search || '%'
+                OR r.rawOcrText LIKE '%' || :search || '%'
+                OR CAST(r.totalMinor AS TEXT) LIKE '%' || :search || '%')
+          AND (:startDate IS NULL OR r.transactionDate >= :startDate)
+          AND (:endDate IS NULL OR r.transactionDate <= :endDate)
+          AND (:categoryId IS NULL OR r.categoryId = :categoryId)
+          AND (:reviewStatus IS NULL OR r.reviewStatus = :reviewStatus)
         ORDER BY r.transactionDate DESC
-    """)
-    fun searchReceipts(search: String?): Flow<List<ReceiptEntity>>
-
-    @Query("""
-        SELECT r.* FROM receipts r
-        LEFT JOIN merchants m ON r.merchantId = m.id
-        WHERE (:search IS NULL OR :search = '' OR m.name LIKE '%' || :search || '%'
-            OR r.rawOcrText LIKE '%' || :search || '%')
-        ORDER BY r.transactionDate DESC
-    """)
-    suspend fun searchReceiptsSync(search: String?): List<ReceiptEntity>
-
-    @Query("""
-        SELECT * FROM receipts
-        WHERE (:startDate IS NULL OR transactionDate >= :startDate)
-          AND (:endDate IS NULL OR transactionDate <= :endDate)
-          AND (:categoryId IS NULL OR categoryId = :categoryId)
-          AND (:reviewStatus IS NULL OR reviewStatus = :reviewStatus)
-        ORDER BY transactionDate DESC
     """)
     fun filterReceipts(
-        startDate: Long?, endDate: Long?, categoryId: Long?, reviewStatus: String?
+        search: String?,
+        startDate: Long?,
+        endDate: Long?,
+        categoryId: Long?,
+        reviewStatus: String?,
     ): Flow<List<ReceiptEntity>>
 
     @Transaction
@@ -158,9 +161,15 @@ interface ReceiptDao {
     """)
     suspend fun getCountInRange(start: Long?, end: Long?): Int
 
+    // LEFT JOIN supaya struk tanpa kategori tetap muncul (categoryId NULL).
+    // Nama diambil di sini, bukan di UI, karena categoryId -> name itu 1:1 dan
+    // Dashboard sebelumnya menampilkan "Kategori 1" — id mentah, bukan nama.
     @Query("""
-        SELECT r.categoryId as categoryId, COALESCE(SUM(r.totalMinor), 0) as total
+        SELECT r.categoryId as categoryId,
+               c.name as categoryName,
+               COALESCE(SUM(r.totalMinor), 0) as total
         FROM receipts r
+        LEFT JOIN categories c ON r.categoryId = c.id
         WHERE (:start IS NULL OR r.transactionDate >= :start)
           AND (:end IS NULL OR r.transactionDate <= :end)
         GROUP BY r.categoryId
@@ -191,6 +200,8 @@ interface ReceiptDao {
 
 data class CategoryTotal(
     val categoryId: Long?,
+    /** Null kalau struk belum diberi kategori. */
+    val categoryName: String? = null,
     val total: Long
 )
 

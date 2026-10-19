@@ -45,7 +45,7 @@ import com.notarapi.tidynote.data.receipt.DashboardSummary
 import com.notarapi.tidynote.data.receipt.ReceiptRepository
 import java.time.LocalDate
 import java.time.ZoneId
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.collectLatest
 import org.koin.compose.koinInject
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -62,11 +62,27 @@ fun HomeScreen(
     val startOfMonth = remember {
         LocalDate.now().withDayOfMonth(1).atStartOfDay(zone).toInstant().toEpochMilli()
     }
+
+    // Dulu ringkasan dimuat SEKALI di dalam LaunchedEffect(startOfMonth).
+    // `startOfMonth` di-remember dan tidak pernah berubah, jadi kembali dari
+    // Simpan/Hapus lewat popBackStack tidak memicu pemuatan ulang: "Total bulan
+    // ini" dan "N struk" menampilkan data sebelum perubahan.
+    //
+    // Room sudah memancarkan ulang Flow setiap tabel berubah, jadi tidak perlu
+    // refresh manual. Ringkasan dihitung ulang di dalam collectLatest yang sama
+    // supaya angka dan daftar tidak pernah tidak sinkron.
     var summary by remember { mutableStateOf(DashboardSummary()) }
     var recent by remember { mutableStateOf<List<ReceiptEntity>>(emptyList()) }
     LaunchedEffect(startOfMonth) {
-        summary = repository.getDashboardSummary(startOfMonth, null)
-        recent = try { repository.getReceiptsPaged(5, 0).first() } catch (_: Exception) { emptyList() }
+        repository.getReceiptsPaged(5, 0).collectLatest { list ->
+            recent = list
+            summary = try {
+                repository.getDashboardSummary(startOfMonth, null)
+            } catch (_: Exception) {
+                // Jangan biarkan kegagalan query mematikan layar.
+                DashboardSummary()
+            }
+        }
     }
     Scaffold(
         topBar = {

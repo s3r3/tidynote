@@ -18,14 +18,31 @@ interface ReceiptRepository {
     suspend fun getReceiptWithItems(id: Long): ReceiptWithItems?
     fun getReceiptsPaged(limit: Int, offset: Int): Flow<List<ReceiptEntity>>
     fun getPendingReceipts(): Flow<List<ReceiptEntity>>
-    fun searchReceipts(query: String?): Flow<List<ReceiptEntity>>
+
+    /**
+     * Pencarian + filter dalam satu query. Dipakai bersama oleh daftar di layar
+     * dan oleh ekspor, supaya keduanya tidak bisa lagi memberi hasil berbeda.
+     */
     fun filterReceipts(
-        startDate: Long?, endDate: Long?, categoryId: Long?, reviewStatus: String?
+        search: String? = null,
+        startDate: Long? = null,
+        endDate: Long? = null,
+        categoryId: Long? = null,
+        reviewStatus: String? = null,
     ): Flow<List<ReceiptEntity>>
+
     suspend fun getPendingCount(): Int
     suspend fun getTotalThisMonth(startOfMonth: Long): Long
     suspend fun updateReviewStatus(id: Long, status: String)
-    suspend fun getReceiptsForExport(query: String?): List<ReceiptRow>
+
+    /** Ekspor memakai filter yang sama dengan layar; default menjaga pemanggil lama tetap jalan. */
+    suspend fun getReceiptsForExport(
+        query: String? = null,
+        startDate: Long? = null,
+        endDate: Long? = null,
+        categoryId: Long? = null,
+        reviewStatus: String? = null,
+    ): List<ReceiptRow>
     suspend fun getDashboardSummary(start: Long?, end: Long?): DashboardSummary
     fun categories(): Flow<List<com.notarapi.tidynote.core.model.CategoryEntity>>
     suspend fun restoreFromBackup(rows: List<Pair<ReceiptDraft, String>>): Int

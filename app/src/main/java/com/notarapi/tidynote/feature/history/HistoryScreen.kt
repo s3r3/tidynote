@@ -65,10 +65,13 @@ fun HistoryScreen(onNavigateBack: () -> Unit, onOpenReceipt: (Long) -> Unit = {}
 
     var searchQuery by remember { mutableStateOf("") }
     var selectedStatus by remember { mutableStateOf("ALL") }
+    var selectedCategoryId by remember { mutableStateOf<Long?>(null) }
+    var categoryExpanded by remember { mutableStateOf(false) }
     var statusExpanded by remember { mutableStateOf(false) }
     var exportMessage by remember { mutableStateOf<String?>(null) }
 
     val statusOptions = listOf("ALL", "PENDING", "REVIEWED")
+    val categories by repository.categories().collectAsStateWithLifecycle(initialValue = emptyList())
 
     var dateRange by remember { mutableStateOf("ALL") }
     val startDate = remember(dateRange) {
@@ -77,21 +80,21 @@ fun HistoryScreen(onNavigateBack: () -> Unit, onOpenReceipt: (Long) -> Unit = {}
             else -> null
         }
     }
-    val receiptsFlow = remember(searchQuery, selectedStatus, startDate) {
+    val receiptsFlow = remember(searchQuery, selectedStatus, startDate, selectedCategoryId) {
         repository.filterReceipts(
-            startDate = startDate, endDate = null,
-            categoryId = null,
+            search = searchQuery.ifBlank { null },
+            startDate = startDate,
+            endDate = null,
+            categoryId = selectedCategoryId,
             reviewStatus = selectedStatus.takeIf { it != "ALL" },
         )
     }
     val receipts by receiptsFlow.collectAsStateWithLifecycle(initialValue = emptyList())
 
-    val filteredReceipts = remember(receipts, searchQuery) {
-        val q = searchQuery.trim().lowercase()
-        if (q.isBlank()) receipts else receipts.filter {
-            it.rawOcrText.lowercase().contains(q) || (it.totalMinor?.toString() ?: "").contains(q)
-        }
-    }
+    // Dulu ada `filteredReceipts` yang memfilter ulang di memori hanya atas
+    // rawOcrText + totalMinor. Itu sebabnya pencarian nama merchant tidak pernah
+    // ketemu di layar, padahal ekspor menemukannya. Sekarang satu query saja.
+    val filteredReceipts = receipts
 
     Scaffold(
         topBar = {
@@ -106,7 +109,16 @@ fun HistoryScreen(onNavigateBack: () -> Unit, onOpenReceipt: (Long) -> Unit = {}
                     IconButton(
                         onClick = {
                             scope.launch {
-                                val rows = repository.getReceiptsForExport(searchQuery.ifBlank { null })
+                                // Filter yang sama dengan layar: dulu ekspor hanya
+                                // menerima kata kunci dan mengabaikan status/tanggal,
+                                // jadi isi file tidak cocok dengan yang dilihat user.
+                                val rows = repository.getReceiptsForExport(
+                                    query = searchQuery.ifBlank { null },
+                                    startDate = startDate,
+                                    endDate = null,
+                                    categoryId = selectedCategoryId,
+                                    reviewStatus = selectedStatus.takeIf { it != "ALL" },
+                                )
                                 val result = PdfExporter().exportReceipts(rows, context.contentResolver)
                                 exportMessage = if (result.isSuccess) "PDF tersimpan di Downloads"
                                 else "Gagal ekspor PDF: ${result.exceptionOrNull()?.message}"
@@ -118,7 +130,13 @@ fun HistoryScreen(onNavigateBack: () -> Unit, onOpenReceipt: (Long) -> Unit = {}
                     IconButton(
                         onClick = {
                             scope.launch {
-                                val rows = repository.getReceiptsForExport(searchQuery.ifBlank { null })
+                                val rows = repository.getReceiptsForExport(
+                                    query = searchQuery.ifBlank { null },
+                                    startDate = startDate,
+                                    endDate = null,
+                                    categoryId = selectedCategoryId,
+                                    reviewStatus = selectedStatus.takeIf { it != "ALL" },
+                                )
                                 val result = CsvExporter().exportReceipts(rows, context.contentResolver)
                                 exportMessage = if (result.isSuccess) "CSV tersimpan di Downloads"
                                 else "Gagal ekspor: ${result.exceptionOrNull()?.message}"
@@ -196,6 +214,42 @@ fun HistoryScreen(onNavigateBack: () -> Unit, onOpenReceipt: (Long) -> Unit = {}
             Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf("ALL" to "Semua", "30D" to "30 hari").forEach { (v, label) ->
                     androidx.compose.material3.FilterChip(selected = dateRange == v, onClick = { dateRange = v }, label = { Text(label) })
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+
+            // Filter kategori. DAO dan repository sudah menerima categoryId sejak
+            // awal, tapi UI-nya selalu mengirim null sehingga fitur ini tidak pernah
+            // bisa dipakai. Sekarang datanya benar-benar bisa disaring per kategori.
+            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                Box {
+                    androidx.compose.material3.OutlinedButton(onClick = { categoryExpanded = true }) {
+                        Text(
+                            categories.firstOrNull { it.id == selectedCategoryId }?.name
+                                ?: "Semua kategori",
+                        )
+                    }
+                    androidx.compose.material3.DropdownMenu(
+                        expanded = categoryExpanded,
+                        onDismissRequest = { categoryExpanded = false },
+                    ) {
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text("Semua kategori") },
+                            onClick = {
+                                selectedCategoryId = null
+                                categoryExpanded = false
+                            },
+                        )
+                        categories.forEach { category ->
+                            androidx.compose.material3.DropdownMenuItem(
+                                text = { Text(category.name) },
+                                onClick = {
+                                    selectedCategoryId = category.id
+                                    categoryExpanded = false
+                                },
+                            )
+                        }
+                    }
                 }
             }
             Spacer(Modifier.height(8.dp))
