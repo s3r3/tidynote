@@ -21,7 +21,9 @@ data class ParseRequest(
 )
 
 @Serializable
-data class ParseResponse(val content: String)
+data class ParseResponse(
+    val content: String,
+)
 
 object BackendContract {
     const val SCHEMA_VERSION = 1
@@ -29,7 +31,10 @@ object BackendContract {
     const val PATH = "/v1/receipts/parse"
     const val LEGACY_PATH = "/v1/receipt/extract"
 
-    fun url(baseUrl: String, legacy: Boolean = false): String {
+    fun url(
+        baseUrl: String,
+        legacy: Boolean = false,
+    ): String {
         val base = baseUrl.trimEnd('/')
         return base + if (legacy) LEGACY_PATH else PATH
     }
@@ -46,15 +51,18 @@ object BackendContract {
      * Dipisah murni agar bisa diuji tanpa jaringan.
      */
     fun extractProviderContent(providerJson: String): String {
-        val root = try {
-            providerJson.parseToJsonElement() as? JsonObject
-        } catch (_: Exception) {
-            null
-        } ?: return ""
+        val root =
+            try {
+                providerJson.parseToJsonElement() as? JsonObject
+            } catch (_: Exception) {
+                null
+            } ?: return ""
         val choices = root["choices"] as? JsonArray ?: return ""
-        val message = choices.firstOrNull()
-            ?.let { it as? JsonObject }
-            ?.get("message") as? JsonObject ?: return ""
+        val message =
+            choices
+                .firstOrNull()
+                ?.let { it as? JsonObject }
+                ?.get("message") as? JsonObject ?: return ""
         return (message["content"] as? JsonPrimitive)?.content.orEmpty()
     }
 
@@ -62,17 +70,17 @@ object BackendContract {
      * Susun prompt sistem untuk mode DEVELOPMENT (panggil provider langsung).
      * Backend proxy punya prompt sendiri; ini hanya dipakai saat tak ada backend.
      */
-    fun devSystemPrompt(): String = buildString {
-        append("Kamu mengekstrak data struk belanja dari teks OCR. ")
-        append("Balas HANYA dengan JSON valid (tanpa penjelasan, tanpa markdown). ")
-        append("Skema: {merchantName:string|null, transactionDate:ISO8601|null, ")
-        append("currency:\"IDR\", items:[{name:string, quantity:int, unitPriceMinor:long, ")
-        append("totalMinor:long, confidence:0..1}], subtotalMinor:long|null, ")
-        append("taxMinor:long|null, discountMinor:long|null, totalMinor:long|null, confidence:0..1}. ")
-        append("Semua nominal dalam satuan terkecil rupiah (mis. Rp 25.000 -> 25000). ")
-        append("Jangan mengarang; jika tak yakin isi null. currency selalu \"IDR\".")
-    }
+    fun devSystemPrompt(): String =
+        buildString {
+            append("Kamu mengekstrak data struk belanja dari teks OCR. ")
+            append("Balas HANYA dengan JSON valid (tanpa penjelasan, tanpa markdown). ")
+            append("Skema: {merchantName:string|null, transactionDate:ISO8601|null, ")
+            append("currency:\"IDR\", items:[{name:string, quantity:int, unitPriceMinor:long, ")
+            append("totalMinor:long, confidence:0..1}], subtotalMinor:long|null, ")
+            append("taxMinor:long|null, discountMinor:long|null, totalMinor:long|null, confidence:0..1}. ")
+            append("Semua nominal dalam satuan terkecil rupiah (mis. Rp 25.000 -> 25000). ")
+            append("Jangan mengarang; jika tak yakin isi null. currency selalu \"IDR\".")
+        }
 }
 
 private fun String.parseToJsonElement(): JsonElement = Json.parseToJsonElement(this)
-

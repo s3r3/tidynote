@@ -1,7 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 11 ke bawah (fullBackupContent).
+
+  Begitu ada satu <include>, hanya domain yang di-include yang ikut di-backup —
+  jadi gambar struk di domain root memang sudah tidak ikut, tanpa perlu
+  <exclude>. Dua baris <exclude domain="root" ...> yang dulu ada di sini
+  menunjuk path yang tidak pernah masuk cakupan; Android Lint menandainya
+  sebagai error (FullBackupContent: "is not in an included path") dan itu
+  menggagalkan build.
+-->
 <full-backup-content>
     <include domain="database" />
     <include domain="sharedpref" />
-    <exclude domain="root" path="images" />
-    <exclude domain="root" path="files" />
 </full-backup-content>

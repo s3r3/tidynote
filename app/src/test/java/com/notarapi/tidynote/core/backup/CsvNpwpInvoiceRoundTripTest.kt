@@ -20,7 +20,6 @@ import org.junit.jupiter.api.Test
  * pemisah kolom bergeser satu dan seluruh baris salah dibaca.
  */
 class CsvNpwpInvoiceRoundTripTest {
-
     private val header = "Tanggal,Merchant,NPWP,Kategori,Subtotal,Diskon,PPN,Total,Status,Teks OCR,No Invoice"
 
     /** Tanggal selalu dalam kutip ganda, persis seperti keluaran CsvExporter. */
@@ -28,8 +27,9 @@ class CsvNpwpInvoiceRoundTripTest {
 
     @Test
     fun `npwp dan nomor invoice terbaca dari baris 11 kolom`() {
-        val csv = "$header\n" +
-            "$tanggal,TOKO SEGAR,01.234.567.8-901.000,1,20000,0,2000,22000,REVIEWED,beras 2x10000,INV-2026-001"
+        val csv =
+            "$header\n" +
+                "$tanggal,TOKO SEGAR,01.234.567.8-901.000,1,20000,0,2000,22000,REVIEWED,beras 2x10000,INV-2026-001"
 
         val rows = CsvBackupParser.parse(csv)
         assertEquals(1, rows.size)
@@ -41,8 +41,9 @@ class CsvNpwpInvoiceRoundTripTest {
 
     @Test
     fun `baris 10 kolom lama tetap terbaca tanpa npwp`() {
-        val csv = "$header\n" +
-            "$tanggal,TOKO LAMA,,1,20000,0,2000,22000,REVIEWED,beras 2x10000"
+        val csv =
+            "$header\n" +
+                "$tanggal,TOKO LAMA,,1,20000,0,2000,22000,REVIEWED,beras 2x10000"
 
         val rows = CsvBackupParser.parse(csv)
         assertEquals(1, rows.size)
@@ -56,8 +57,9 @@ class CsvNpwpInvoiceRoundTripTest {
 
     @Test
     fun `kolom opsional kosong jadi null bukan string kosong`() {
-        val csv = "$header\n" +
-            "$tanggal,TOKO,,1,20000,0,2000,22000,PENDING,teks,   "
+        val csv =
+            "$header\n" +
+                "$tanggal,TOKO,,1,20000,0,2000,22000,PENDING,teks,   "
 
         val draft = CsvBackupParser.parse(csv).single().first
         assertNull(draft.npwp, "spasi saja harus jadi null")
@@ -66,8 +68,9 @@ class CsvNpwpInvoiceRoundTripTest {
 
     @Test
     fun `nomor invoice dengan koma tetap utuh`() {
-        val csv = "$header\n" +
-            "$tanggal,TOKO,,1,20000,0,2000,22000,REVIEWED,teks,\"INV,2026,001\""
+        val csv =
+            "$header\n" +
+                "$tanggal,TOKO,,1,20000,0,2000,22000,REVIEWED,teks,\"INV,2026,001\""
 
         val draft = CsvBackupParser.parse(csv).single().first
         assertEquals("INV,2026,001", draft.invoiceNumber)
@@ -79,8 +82,9 @@ class CsvNpwpInvoiceRoundTripTest {
         // exporter dan lupa escapeCsv), koma di dalam tanggal memecah baris jadi
         // satu kolom ekstra dan SEMUA kolom sesudahnya bergeser — merchant jadi
         // berisi jam, dst. Test ini mengunci bahwa tanggal memang dikutip.
-        val csv = "$header\n" +
-            "$tanggal,TOKO SEGAR,,1,20000,0,2000,22000,REVIEWED,teks,INV-1"
+        val csv =
+            "$header\n" +
+                "$tanggal,TOKO SEGAR,,1,20000,0,2000,22000,REVIEWED,teks,INV-1"
 
         val draft = CsvBackupParser.parse(csv).single().first
         assertEquals("TOKO SEGAR", draft.merchantName, "kutip tanggal hilang -> kolom bergeser")

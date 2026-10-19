@@ -43,10 +43,13 @@ import com.notarapi.tidynote.core.util.formatCurrency
 import com.notarapi.tidynote.core.util.formatDate
 import com.notarapi.tidynote.data.receipt.DashboardSummary
 import com.notarapi.tidynote.data.receipt.ReceiptRepository
-import java.time.LocalDate
-import java.time.ZoneId
 import kotlinx.coroutines.flow.collectLatest
 import org.koin.compose.koinInject
+import java.time.LocalDate
+import java.time.ZoneId
+
+/** Struk terbaru yang ditampilkan di beranda. */
+private const val RECENT_LIMIT = 5
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -61,9 +64,15 @@ fun HomeScreen(
 ) {
     val repository: ReceiptRepository = koinInject()
     val zone = ZoneId.systemDefault()
-    val startOfMonth = remember {
-        LocalDate.now().withDayOfMonth(1).atStartOfDay(zone).toInstant().toEpochMilli()
-    }
+    val startOfMonth =
+        remember {
+            LocalDate
+                .now()
+                .withDayOfMonth(1)
+                .atStartOfDay(zone)
+                .toInstant()
+                .toEpochMilli()
+        }
 
     // Dulu ringkasan dimuat SEKALI di dalam LaunchedEffect(startOfMonth).
     // `startOfMonth` di-remember dan tidak pernah berubah, jadi kembali dari
@@ -76,14 +85,15 @@ fun HomeScreen(
     var summary by remember { mutableStateOf(DashboardSummary()) }
     var recent by remember { mutableStateOf<List<ReceiptEntity>>(emptyList()) }
     LaunchedEffect(startOfMonth) {
-        repository.getReceiptsPaged(5, 0).collectLatest { list ->
+        repository.getReceiptsPaged(RECENT_LIMIT, 0).collectLatest { list ->
             recent = list
-            summary = try {
-                repository.getDashboardSummary(startOfMonth, null)
-            } catch (_: Exception) {
-                // Jangan biarkan kegagalan query mematikan layar.
-                DashboardSummary()
-            }
+            summary =
+                try {
+                    repository.getDashboardSummary(startOfMonth, null)
+                } catch (_: Exception) {
+                    // Jangan biarkan kegagalan query mematikan layar.
+                    DashboardSummary()
+                }
         }
     }
     Scaffold(
@@ -98,7 +108,12 @@ fun HomeScreen(
         },
     ) { padding ->
         Column(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp).verticalScroll(rememberScrollState()),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Button(onClick = onScan, modifier = Modifier.fillMaxWidth().height(56.dp)) {
@@ -106,17 +121,31 @@ fun HomeScreen(
                 Spacer(Modifier.size(8.dp))
                 Text("Pindai struk", fontWeight = FontWeight.Bold)
             }
-            Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer)) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer),
+            ) {
                 Column(Modifier.padding(20.dp)) {
                     Text("Total bulan ini")
-                    Text(formatCurrency(summary.totalRupiah), style = androidx.compose.material3.MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                    Text(
+                        formatCurrency(summary.totalRupiah),
+                        style = androidx.compose.material3.MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
                     Text("${summary.count} struk")
                 }
             }
             if (summary.pendingCount > 0) {
-                OutlinedButton(onClick = onReviewPending, modifier = Modifier.fillMaxWidth()) { Text("Periksa ${summary.pendingCount} struk") }
+                OutlinedButton(
+                    onClick = onReviewPending,
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("Periksa ${summary.pendingCount} struk") }
             }
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 Text("Transaksi terbaru", fontWeight = FontWeight.Bold)
                 OutlinedButton(onClick = onHistory) {
                     Icon(Icons.Default.History, contentDescription = "Riwayat")

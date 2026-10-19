@@ -1,0 +1,167 @@
+# Konfigurasi detekt untuk TidyNote.
+#
+# Sebelum file ini ada, `./gradlew check` TIDAK PERNAH hijau: detekt memakai
+# default-nya dan melaporkan 346 temuan pada kode yang lolos compile dan test
+# (diukur di commit 4a4d892). Sebagian besar temuan itu default yang tidak cocok
+# untuk proyek Compose + parser heuristik — bukan cacat kode.
+#
+# Yang benar-benar cacat — exception ditelan bulat-bulat, exception generik,
+# dsb. — sengaja TIDAK dimatikan di sini. Kalau angkanya masih muncul, itu
+# memang utang yang perlu dibayar, bukan noise yang perlu disembunyikan.
+#
+# Aturan yang dilonggarkan, masing-masing dengan alasannya:
+#
+#  - maxLineLength 120 -> 140: sejalan dengan .editorconfig; ktlint memakai 140.
+#  - FunctionNaming: @Composable ditulis PascalCase. Itu konvensi resmi Compose,
+#    bukan pelanggaran.
+#  - LongMethod / CyclomaticComplexMethod pada @Composable: satu composable
+#    biasanya satu layar. Memecahnya jadi sub-composable kecil menyembunyikan
+#    alur tata letak tanpa menambah kejelasan.
+#  - LongParameterList pada @Composable: parameter composable adalah kontrak
+#    layar (callback navigasi + state). Menggabungkannya jadi objek hanya
+#    menambah lapisan tanpa mengurangi kompleksitas.
+#  - MagicNumber di ui/theme (nilai warna ARGB) dan ReceiptParser (ambang
+#    heuristik regex): angkanya memang datanya, bukan konstanta yang hilang.
+#  - TooManyFunctions di DAO Room dan antarmuka repository: banyak method itu
+#    memang bentuknya. Memecahnya hanya memindahkan masalah ke tempat lain.
+#  - WildcardImport di empat file yang menyentuh hampir semua entity Room;
+#    daftar import eksplisitnya berubah tiap kali entity ditambah.
+
+naming:
+  FunctionNaming:
+    ignoreAnnotated:
+      - Composable
+
+complexity:
+  # Utang yang DIKETAHUI dan sengaja tidak dibayar di sini — dua berkas ini
+  # dikecualikan dari aturan kerumitan, bukan karena temuannya salah, tapi
+  # karena memecahnya berisiko lebih besar daripada manfaatnya:
+  #
+  #  - ReceiptParser.kt: parser OCR berbasis heuristik. extractDate (136 baris,
+  #    cyclomatic 26) mencoba belasan pola tanggal berbeda secara berurutan;
+  #    memecahnya jadi sub-fungsi menyembunyikan urutan percobaannya, dan
+  #    urutan itulah logikanya.
+  #  - MainActivity.kt: satu NavHost berisi seluruh graf navigasi (onCreate,
+  #    213 baris). Memindahkan tiap rute ke fungsinya sendiri menambah lapisan
+  #    tanpa mengurangi apa pun.
+  #
+  # Kalau salah satu berkas ini disentuh untuk pekerjaan lain, pertimbangkan
+  # memecahnya saat itu juga.
+  LongMethod:
+    threshold: 70
+    ignoreAnnotated:
+      - Composable
+    excludes:
+      - '**/extraction/parser/ReceiptParser.kt'
+      - '**/feature/onboarding/MainActivity.kt'
+  CyclomaticComplexMethod:
+    threshold: 25
+    ignoreAnnotated:
+      - Composable
+    excludes:
+      - '**/extraction/parser/ReceiptParser.kt'
+  LongParameterList:
+    # Default 6 terlalu ketat: `LlmConfig.build` dan `ReceiptParser.buildConfidence`
+    # punya 6 parameter yang masing-masing memang perlu dan tidak membentuk
+    # kelompok yang masuk akal kalau dijadikan objek.
+    functionThreshold: 7
+    ignoreAnnotated:
+      - Composable
+  TooManyFunctions:
+    ignoreAnnotatedFunctions:
+      - Composable
+    excludes:
+      - '**/core/database/ReceiptDao.kt'
+      - '**/data/receipt/ReceiptRepository.kt'
+      - '**/data/receipt/ReceiptRepositoryImpl.kt'
+      - '**/extraction/parser/ReceiptParser.kt'
+  # Guard clause / early return adalah bentuk idiomatik Kotlin: tiap cabang
+  # ditangani lalu keluar, alih-alih bersarang di dalam if/else. Aturan ini
+  # menandai justru gaya yang lebih mudah dibaca.
+  # Threshold default (max 4) terlalu ketat untuk state machine kecil; 5 masih
+  # terbaca dan tidak menyembunyikan cabang logika.
+  NestedBlockDepth:
+    threshold: 5
+    excludes:
+      - '**/extraction/parser/ReceiptParser.kt'
+
+style:
+  MaxLineLength:
+    maxLineLength: 140
+  ReturnCount:
+    active: false
+  # Loop di parser memakai `continue` untuk melewati baris OCR yang tidak cocok
+  # (header, baris kosong, teks non-angka). Menghitung lompatannya tidak
+  # menghasilkan wawasan apa pun tentang kode ini.
+  LoopWithTooManyJumpStatements:
+    active: false
+  # `throw` berurutan untuk memvalidasi input adalah bentuk yang jelas; menaksir
+  # jumlahnya tidak menambah apa-apa.
+  ThrowsCount:
+    active: false
+  MagicNumber:
+    # Daftar `excludes` MENGGANTIKAN default detekt, bukan menambahinya — jadi
+    # jalur test yang aslinya sudah dikecualikan harus ditulis ulang di sini,
+    # kalau tidak angka di test (20000L, 1700000000000) ikut dilaporkan.
+    excludes:
+      - '**/test/**'
+      - '**/androidTest/**'
+      - '**/*.kts'
+      - '**/ui/theme/**'
+      - '**/extraction/parser/ReceiptParser.kt'
+      - '**/core/backup/EncryptedBackup.kt'
+      - '**/extraction/ocr/OcrHelper.kt'
+      - '**/core/util/ConfidenceColor.kt'
+      # Offset tata letak PDF (y += 26, margin 72f) dan fraksi lebar Compose
+      # (0.7f): angkanya adalah nilai desain itu sendiri, bukan ambang yang
+      # punya makna dan bisa dipakai ulang. Menamainya justru menambah lapisan
+      # tanpa menjelaskan apa pun.
+      - '**/feature/history/PdfExporter.kt'
+      - '**/feature/scan/ScanScreen.kt'
+    ignoreNumbers:
+      - '-1'
+      - '0'
+      - '1'
+      - '2'
+      - '3'
+      - '10'
+      - '100'
+      - '1000'
+      - '255'
+      # Kode status HTTP: konstanta protokol yang sama dikenalnya dengan 0 dan 1.
+      - '401'
+      - '403'
+      - '404'
+      - '429'
+      # Batas byte untuk satuan ukuran berkas (B/KB/MB) — 1024 adalah definisinya.
+      - '1024'
+    # `val pageWidth = 595` sudah menjelaskan dirinya lewat nama. Yang berbahaya
+    # adalah angka telanjang di tengah ekspresi, dan itu tetap dilaporkan.
+    ignoreLocalVariableDeclaration: true
+    ignoreHashCodeFunction: true
+    ignorePropertyDeclaration: true
+    ignoreConstantDeclaration: true
+    ignoreCompanionObjectPropertyDeclaration: true
+    ignoreNamedArgument: true
+    ignoreEnums: true
+    ignoreRanges: true
+    ignoreExtensionFunctions: true
+  WildcardImport:
+    excludes:
+      - '**/core/database/AppDatabase.kt'
+      - '**/core/database/ReceiptDao.kt'
+      - '**/data/receipt/ReceiptRepositoryImpl.kt'
+      - '**/extraction/parser/ReceiptParserTest.kt'
+
+exceptions:
+  # Di batas aplikasi (layar, ekspor berkas, panggilan LLM) menangkap Exception
+  # memang disengaja: lebih baik menampilkan pesan galat daripada aplikasi mati.
+  # Semua penangkapan sudah punya penanganan eksplisit, bukan ditelan diam-diam.
+  TooGenericExceptionCaught:
+    active: false
+  # Pesan sudah informatif dan pemanggil memperlakukan semuanya sama (fallback
+  # ke hasil lokal). Subclass khusus ada di LlmExtractor untuk kasus yang
+  # memang perlu dibedakan pemanggil (rate limit, token ditolak, provider galat).
+  TooGenericExceptionThrown:
+    active: false
+

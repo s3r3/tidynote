@@ -5,12 +5,12 @@ import androidx.sqlite.db.SupportSQLiteOpenHelper
 import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.io.File
 
 /**
  * Menguji jalur upgrade Room tanpa bergantung pada file schema v1.
@@ -25,9 +25,9 @@ import org.junit.runner.RunWith
  */
 @RunWith(AndroidJUnit4::class)
 class MigrationTest {
-
     /** Bentuk tabel `receipts` di versi 1: tanpa kolom invoiceNumber. */
-    private val createReceiptsV1 = """
+    private val createReceiptsV1 =
+        """
         CREATE TABLE IF NOT EXISTS `receipts` (
             `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
             `merchantId` INTEGER,
@@ -46,32 +46,42 @@ class MigrationTest {
             `createdAt` INTEGER NOT NULL,
             `updatedAt` INTEGER NOT NULL
         )
-    """.trimIndent()
+        """.trimIndent()
 
     /** INSERT harus mengisi SEMUA kolom NOT NULL — versi lama tidak, karena itu gagal. */
-    private val insertRow = """
+    private val insertRow =
+        """
         INSERT INTO receipts
             (merchantId, transactionDate, currency, rawOcrText, source, confidence,
              reviewStatus, createdAt, updatedAt, totalMinor)
         VALUES (NULL, 1700000000000, 'IDR', 'INDOMARET', 'LOCAL_PARSER', 0.9,
                 'REVIEWED', 1700000000000, 1700000000000, 25000)
-    """.trimIndent()
+        """.trimIndent()
 
     /** Helper yang membuka file DB mentah, tanpa campur tangan Room. */
-    private fun openRaw(name: String, createSql: String): SupportSQLiteOpenHelper {
+    private fun openRaw(
+        name: String,
+        createSql: String,
+    ): SupportSQLiteOpenHelper {
         val ctx = InstrumentationRegistry.getInstrumentation().targetContext
         val file = File(ctx.cacheDir, name).apply { delete() }
         return FrameworkSQLiteOpenHelperFactory().create(
-            SupportSQLiteOpenHelper.Configuration.builder(ctx)
+            SupportSQLiteOpenHelper.Configuration
+                .builder(ctx)
                 .name(file.absolutePath)
-                .callback(object : SupportSQLiteOpenHelper.Callback(1) {
-                    override fun onCreate(db: SupportSQLiteDatabase) {
-                        db.execSQL(createSql)
-                    }
+                .callback(
+                    object : SupportSQLiteOpenHelper.Callback(1) {
+                        override fun onCreate(db: SupportSQLiteDatabase) {
+                            db.execSQL(createSql)
+                        }
 
-                    override fun onUpgrade(db: SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
-                })
-                .build(),
+                        override fun onUpgrade(
+                            db: SupportSQLiteDatabase,
+                            oldVersion: Int,
+                            newVersion: Int,
+                        ) = Unit
+                    },
+                ).build(),
         )
     }
 

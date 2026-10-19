@@ -47,14 +47,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.notarapi.tidynote.R
-import com.notarapi.tidynote.data.receipt.ReceiptRepository
 import com.notarapi.tidynote.core.model.ReceiptEntity
 import com.notarapi.tidynote.core.util.formatCurrency
 import com.notarapi.tidynote.core.util.formatDate
+import com.notarapi.tidynote.data.receipt.ReceiptRepository
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -81,21 +81,23 @@ fun HistoryScreen(
     val categories by repository.categories().collectAsStateWithLifecycle(initialValue = emptyList())
 
     var dateRange by remember { mutableStateOf("ALL") }
-    val startDate = remember(dateRange) {
-        when (dateRange) {
-            "30D" -> System.currentTimeMillis() - 30L * 24 * 60 * 60 * 1000
-            else -> null
+    val startDate =
+        remember(dateRange) {
+            when (dateRange) {
+                "30D" -> System.currentTimeMillis() - 30L * 24 * 60 * 60 * 1000
+                else -> null
+            }
         }
-    }
-    val receiptsFlow = remember(searchQuery, selectedStatus, startDate, selectedCategoryId) {
-        repository.filterReceipts(
-            search = searchQuery.ifBlank { null },
-            startDate = startDate,
-            endDate = null,
-            categoryId = selectedCategoryId,
-            reviewStatus = selectedStatus.takeIf { it != "ALL" },
-        )
-    }
+    val receiptsFlow =
+        remember(searchQuery, selectedStatus, startDate, selectedCategoryId) {
+            repository.filterReceipts(
+                search = searchQuery.ifBlank { null },
+                startDate = startDate,
+                endDate = null,
+                categoryId = selectedCategoryId,
+                reviewStatus = selectedStatus.takeIf { it != "ALL" },
+            )
+        }
     val receipts by receiptsFlow.collectAsStateWithLifecycle(initialValue = emptyList())
 
     // Dulu ada `filteredReceipts` yang memfilter ulang di memori hanya atas
@@ -119,54 +121,65 @@ fun HistoryScreen(
                                 // Filter yang sama dengan layar: dulu ekspor hanya
                                 // menerima kata kunci dan mengabaikan status/tanggal,
                                 // jadi isi file tidak cocok dengan yang dilihat user.
-                                val rows = repository.getReceiptsForExport(
-                                    query = searchQuery.ifBlank { null },
-                                    startDate = startDate,
-                                    endDate = null,
-                                    categoryId = selectedCategoryId,
-                                    reviewStatus = selectedStatus.takeIf { it != "ALL" },
-                                )
+                                val rows =
+                                    repository.getReceiptsForExport(
+                                        query = searchQuery.ifBlank { null },
+                                        startDate = startDate,
+                                        endDate = null,
+                                        categoryId = selectedCategoryId,
+                                        reviewStatus = selectedStatus.takeIf { it != "ALL" },
+                                    )
                                 val result = PdfExporter().exportReceipts(rows, context.contentResolver)
-                                exportMessage = if (result.isSuccess) "PDF tersimpan di Downloads"
-                                else "Gagal ekspor PDF: ${result.exceptionOrNull()?.message}"
+                                exportMessage =
+                                    if (result.isSuccess) {
+                                        "PDF tersimpan di Downloads"
+                                    } else {
+                                        "Gagal ekspor PDF: ${result.exceptionOrNull()?.message}"
+                                    }
                             }
-                        }
+                        },
                     ) {
                         Icon(Icons.Default.PictureAsPdf, contentDescription = "Ekspor PDF")
                     }
                     IconButton(
                         onClick = {
                             scope.launch {
-                                val rows = repository.getReceiptsForExport(
-                                    query = searchQuery.ifBlank { null },
-                                    startDate = startDate,
-                                    endDate = null,
-                                    categoryId = selectedCategoryId,
-                                    reviewStatus = selectedStatus.takeIf { it != "ALL" },
-                                )
+                                val rows =
+                                    repository.getReceiptsForExport(
+                                        query = searchQuery.ifBlank { null },
+                                        startDate = startDate,
+                                        endDate = null,
+                                        categoryId = selectedCategoryId,
+                                        reviewStatus = selectedStatus.takeIf { it != "ALL" },
+                                    )
                                 val result = CsvExporter().exportReceipts(rows, context.contentResolver)
-                                exportMessage = if (result.isSuccess) "CSV tersimpan di Downloads"
-                                else "Gagal ekspor: ${result.exceptionOrNull()?.message}"
+                                exportMessage =
+                                    if (result.isSuccess) {
+                                        "CSV tersimpan di Downloads"
+                                    } else {
+                                        "Gagal ekspor: ${result.exceptionOrNull()?.message}"
+                                    }
                             }
-                        }
+                        },
                     ) {
                         Icon(Icons.Default.Download, contentDescription = stringResource(R.string.export_csv))
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainer
-                )
+                colors =
+                    TopAppBarDefaults.topAppBarColors(
+                        containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainer,
+                    ),
             )
-        }
+        },
     ) { padding ->
         Column(
-            modifier = Modifier.fillMaxSize().padding(padding)
+            modifier = Modifier.fillMaxSize().padding(padding),
         ) {
             exportMessage?.let {
                 Text(
                     it,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-                    style = androidx.compose.material3.MaterialTheme.typography.bodySmall
+                    style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
                 )
             }
             TextField(
@@ -181,17 +194,17 @@ fun HistoryScreen(
                             Icon(Icons.Default.Close, contentDescription = stringResource(R.string.clear))
                         }
                     }
-                }
+                },
             )
 
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 ExposedDropdownMenuBox(
                     expanded = statusExpanded,
                     onExpandedChange = { statusExpanded = !statusExpanded },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 ) {
                     TextField(
                         value = selectedStatus,
@@ -199,11 +212,11 @@ fun HistoryScreen(
                         label = { Text(stringResource(R.string.filter)) },
                         modifier = Modifier.menuAnchor().fillMaxWidth(),
                         readOnly = true,
-                        trailingIcon = { Icon(Icons.Default.ExpandMore, contentDescription = "Buka filter status") }
+                        trailingIcon = { Icon(Icons.Default.ExpandMore, contentDescription = "Buka filter status") },
                     )
                     DropdownMenu(
                         expanded = statusExpanded,
-                        onDismissRequest = { statusExpanded = false }
+                        onDismissRequest = { statusExpanded = false },
                     ) {
                         statusOptions.forEach { option ->
                             DropdownMenuItem(
@@ -211,7 +224,7 @@ fun HistoryScreen(
                                 onClick = {
                                     selectedStatus = option
                                     statusExpanded = false
-                                }
+                                },
                             )
                         }
                     }
@@ -264,28 +277,40 @@ fun HistoryScreen(
             if (filteredReceipts.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
+                    contentAlignment = Alignment.Center,
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Default.ReceiptLong, contentDescription = "Belum ada struk", modifier = Modifier.size(64.dp), tint = androidx.compose.material3.MaterialTheme.colorScheme.outline)
-                        Text(stringResource(R.string.no_receipts), style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = androidx.compose.material3.MaterialTheme.colorScheme.outline)
+                        Icon(
+                            Icons.Default.ReceiptLong,
+                            contentDescription = "Belum ada struk",
+                            modifier = Modifier.size(64.dp),
+                            tint = androidx.compose.material3.MaterialTheme.colorScheme.outline,
+                        )
+                        Text(
+                            stringResource(R.string.no_receipts),
+                            style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
+                            color = androidx.compose.material3.MaterialTheme.colorScheme.outline,
+                        )
                     }
                 }
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize().padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     items(filteredReceipts, key = { it.id }) { receipt ->
                         ReceiptHistoryCard(
                             receipt = receipt,
                             onOpen = { onOpenReceipt(receipt.id) },
-                            onDelete = { scope.launch {
-                                val full = repository.getReceiptWithItems(receipt.id)
-                                repository.deleteReceipt(receipt.id)
-                                val paths = (full?.images?.map { it.imagePath } ?: emptyList()) + listOfNotNull(full?.receipt?.imagePath)
-                                paths.forEach { runCatching { java.io.File(it).delete() } }
-                            } }
+                            onDelete = {
+                                scope.launch {
+                                    val full = repository.getReceiptWithItems(receipt.id)
+                                    repository.deleteReceipt(receipt.id)
+                                    val paths =
+                                        (full?.images?.map { it.imagePath } ?: emptyList()) + listOfNotNull(full?.receipt?.imagePath)
+                                    paths.forEach { runCatching { java.io.File(it).delete() } }
+                                }
+                            },
                         )
                     }
                 }
@@ -304,9 +329,10 @@ private fun ReceiptHistoryCard(
     Card(
         onClick = onOpen,
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow
-        )
+        colors =
+            CardDefaults.cardColors(
+                containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow,
+            ),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -314,11 +340,11 @@ private fun ReceiptHistoryCard(
                     Text(
                         formatCurrency(receipt.totalMinor ?: 0),
                         style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                     Text(
                         "${formatDate(receipt.transactionDate)} • ${receipt.reviewStatus}",
-                        style = androidx.compose.material3.MaterialTheme.typography.bodySmall
+                        style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
                     )
                 }
                 IconButton(onClick = { confirmDelete = true }) {
@@ -331,12 +357,15 @@ private fun ReceiptHistoryCard(
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { confirmDelete = false },
             confirmButton = {
-                Button(onClick = { confirmDelete = false; onDelete() }) { Text(stringResource(R.string.delete)) }
+                Button(onClick = {
+                    confirmDelete = false
+                    onDelete()
+                }) { Text(stringResource(R.string.delete)) }
             },
             dismissButton = {
                 androidx.compose.material3.TextButton(onClick = { confirmDelete = false }) { Text(stringResource(R.string.cancel)) }
             },
-            text = { Text(stringResource(R.string.delete_all_data_confirm)) }
+            text = { Text(stringResource(R.string.delete_all_data_confirm)) },
         )
     }
 }

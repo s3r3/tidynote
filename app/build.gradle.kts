@@ -37,12 +37,16 @@ android {
         // PRODUKSI: biarkan LLM_API_KEY kosong → aplikasi memakai backend
         // proxy (URL + token diisi lewat Pengaturan), tidak ada secret di APK.
         // ------------------------------------------------------------------
-        val localProps = Properties().apply {
-            val f = rootProject.file("local.properties")
-            if (f.exists()) f.inputStream().use { load(it) }
-        }
-        fun lp(key: String, fallback: String = ""): String =
-            localProps.getProperty(key, fallback)
+        val localProps =
+            Properties().apply {
+                val f = rootProject.file("local.properties")
+                if (f.exists()) f.inputStream().use { load(it) }
+            }
+
+        fun lp(
+            key: String,
+            fallback: String = "",
+        ): String = localProps.getProperty(key, fallback)
 
         buildConfigField("String", "LLM_API_KEY", "\"${lp("LLM_API_KEY")}\"")
         buildConfigField("String", "LLM_BASE_URL", "\"${lp("LLM_BASE_URL", "https://api.openai.com/v1")}\"")
@@ -120,8 +124,6 @@ dependencies {
 
     // HTTP Client
     implementation(libs.okhttp)
-
-    
 
     // Room
     implementation(libs.room.runtime)

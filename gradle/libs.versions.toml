@@ -86,7 +86,10 @@ androidx-test-ext-junit = "1.2.1"
 androidx-test-runner = "1.6.2"
 
 # Lint / Quality
-ktlint = "9.4.1"
+# 9.4.1 adalah versi PLUGIN terakhir yang masih menjait engine ktlint 0.38.1
+# (rilis 2020, kotlin-compiler 1.4.0) — terlalu tua untuk proyek Kotlin 2.2.20.
+# 14.x memakai engine ktlint 1.x yang sezaman.
+ktlint = "14.2.0"
 detekt = "1.23.6"
 
 [libraries]

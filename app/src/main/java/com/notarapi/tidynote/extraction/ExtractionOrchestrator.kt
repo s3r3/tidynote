@@ -1,7 +1,7 @@
 package com.notarapi.tidynote.extraction
 
-import com.notarapi.tidynote.core.model.ReceiptDraft
 import com.notarapi.tidynote.core.model.ExtractionSource
+import com.notarapi.tidynote.core.model.ReceiptDraft
 import com.notarapi.tidynote.extraction.llm.ReceiptEnricher
 import com.notarapi.tidynote.extraction.ocr.OcrHelper
 import com.notarapi.tidynote.extraction.parser.ReceiptParser
@@ -11,31 +11,39 @@ import kotlinx.coroutines.withContext
 class ExtractionOrchestrator(
     private val ocrHelper: OcrHelper,
     private val localParser: ReceiptParser,
-    private val llmExtractor: ReceiptEnricher?
+    private val llmExtractor: ReceiptEnricher?,
 ) {
+    private val confidenceThreshold = 0.7f
 
-    private val CONFIDENCE_THRESHOLD = 0.7f
+    suspend fun extractFromImage(imagePath: String): ReceiptDraft =
+        withContext(Dispatchers.IO) {
+            val ocrText = ocrHelper.recognizeTextFromPath(imagePath)
+            extractFromOcrText(ocrText, imagePath)
+        }
 
-    suspend fun extractFromImage(imagePath: String): ReceiptDraft = withContext(Dispatchers.IO) {
-        val ocrText = ocrHelper.recognizeTextFromPath(imagePath)
-        extractFromOcrText(ocrText, imagePath)
-    }
+    suspend fun extractFromUri(
+        uri: android.net.Uri,
+        contentResolver: android.content.ContentResolver,
+    ): ReceiptDraft =
+        withContext(Dispatchers.IO) {
+            val ocrText = ocrHelper.recognizeTextFromUri(contentResolver, uri)
+            extractFromOcrText(ocrText, "")
+        }
 
-    suspend fun extractFromUri(uri: android.net.Uri, contentResolver: android.content.ContentResolver): ReceiptDraft = withContext(Dispatchers.IO) {
-        val ocrText = ocrHelper.recognizeTextFromUri(contentResolver, uri)
-        extractFromOcrText(ocrText, "")
-    }
-
-    private suspend fun extractFromOcrText(ocrText: String, imagePath: String): ReceiptDraft {
+    private suspend fun extractFromOcrText(
+        ocrText: String,
+        imagePath: String,
+    ): ReceiptDraft {
         // Try local parser first
-        val localResult = localParser.parse(ocrText).copy(
-            rawOcrText = ocrText,
-            imagePath = imagePath
-        )
+        val localResult =
+            localParser.parse(ocrText).copy(
+                rawOcrText = ocrText,
+                imagePath = imagePath,
+            )
         val validatedLocal = ReceiptValidator.validate(localResult)
 
         // If confidence is good and reconciled, return local result
-        if (validatedLocal.confidence.average >= CONFIDENCE_THRESHOLD && validatedLocal.isReconciled) {
+        if (validatedLocal.confidence.average >= confidenceThreshold && validatedLocal.isReconciled) {
             return validatedLocal.copy(source = ExtractionSource.LOCAL_PARSER)
         }
 
@@ -44,14 +52,15 @@ class ExtractionOrchestrator(
         llmExtractor?.let { llm ->
             try {
                 val llmRaw = llm.extractFromOcr(ocrText)
-                val llmResult = ReceiptValidator.validate(
-                    llmRaw.copy(rawOcrText = ocrText, imagePath = imagePath)
-                )
+                val llmResult =
+                    ReceiptValidator.validate(
+                        llmRaw.copy(rawOcrText = ocrText, imagePath = imagePath),
+                    )
                 // Return whichever has higher confidence
                 if (llmResult.confidence.average > validatedLocal.confidence.average) {
                     return llmResult.copy(source = ExtractionSource.LLM_FALLBACK)
                 }
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 // LLM failed, fall through to local result
             }
         }

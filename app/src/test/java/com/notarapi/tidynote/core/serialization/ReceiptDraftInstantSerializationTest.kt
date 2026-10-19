@@ -11,17 +11,17 @@ import java.time.Instant
  * di-encode/decode tanpa crash — regresi dari bug "Serializer for class 'Instant'".
  */
 class ReceiptDraftInstantSerializationTest {
-
     @Test
     fun `encode-decode draft dengan tanggal ISO berhasil`() {
         val when0 = Instant.parse("2024-01-15T10:30:00Z")
-        val draft = ReceiptDraft(
-            merchantName = "Warung Bu Sari",
-            transactionDate = when0,
-            totalMinor = 25000L,
-            categoryId = 1L,
-            rawOcrText = "TOTAL 25.000",
-        )
+        val draft =
+            ReceiptDraft(
+                merchantName = "Warung Bu Sari",
+                transactionDate = when0,
+                totalMinor = 25000L,
+                categoryId = 1L,
+                rawOcrText = "TOTAL 25.000",
+            )
 
         val json = AppJson.encodeToString(ReceiptDraft.serializer(), draft)
         val back = AppJson.decodeFromString(ReceiptDraft.serializer(), json)

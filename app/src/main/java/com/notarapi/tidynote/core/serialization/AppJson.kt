@@ -12,9 +12,11 @@ import java.time.Instant
  * [kotlinx.serialization.Contextual] (mis. `ReceiptDraft.transactionDate`) bisa
  * di-encode/decode tanpa crash "Serializer for class 'Instant' is not found".
  */
-val AppJson: Json = Json {
-    ignoreUnknownKeys = true
-    serializersModule = SerializersModule {
-        contextual(Instant::class, InstantSerializer)
+val AppJson: Json =
+    Json {
+        ignoreUnknownKeys = true
+        serializersModule =
+            SerializersModule {
+                contextual(Instant::class, InstantSerializer)
+            }
     }
-}

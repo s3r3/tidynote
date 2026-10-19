@@ -1,25 +1,17 @@
 package com.notarapi.tidynote.feature.review
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.material3.Divider
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.TextField
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
@@ -30,8 +22,13 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Divider
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -41,13 +38,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.notarapi.tidynote.R
@@ -57,7 +49,6 @@ import com.notarapi.tidynote.core.util.ConfidenceColor
 import com.notarapi.tidynote.core.util.formatCurrency
 import com.notarapi.tidynote.core.util.formatDate
 import com.notarapi.tidynote.core.util.parseRupiahInput
-import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -103,14 +94,15 @@ fun ReviewScreen(
                     Icon(Icons.Default.Save, contentDescription = stringResource(R.string.save))
                 }
             },
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainer
-            )
+            colors =
+                TopAppBarDefaults.topAppBarColors(
+                    containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainer,
+                ),
         )
 
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item { MerchantSection(draft = editableDraft, onEdit = { editableDraft = it }) }
             item { DateSection(draft = editableDraft, onEdit = { editableDraft = it }) }
@@ -119,9 +111,10 @@ fun ReviewScreen(
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = androidx.compose.material3.MaterialTheme.colorScheme.errorContainer,
-                        ),
+                        colors =
+                            CardDefaults.cardColors(
+                                containerColor = androidx.compose.material3.MaterialTheme.colorScheme.errorContainer,
+                            ),
                     ) {
                         Text(
                             "Selisih hitung: item + pajak - diskon tidak sama dengan total. Periksa kembali sebelum simpan.",
@@ -131,24 +124,27 @@ fun ReviewScreen(
                     }
                 }
             }
-            item { ItemsSection(
-                items = editableDraft.items,
-                onItemEdit = { index ->
-                    isNewItem = false
-                    editingItemIndex = index
-                    showItemEditor = true
-                },
-                onItemDelete = { index ->
-                    editableDraft = editableDraft.copy(
-                        items = editableDraft.items.filterIndexed { i, _ -> i != index },
-                    )
-                },
-                onAddItem = {
-                    isNewItem = true
-                    editingItemIndex = null
-                    showItemEditor = true
-                }
-            ) }
+            item {
+                ItemsSection(
+                    items = editableDraft.items,
+                    onItemEdit = { index ->
+                        isNewItem = false
+                        editingItemIndex = index
+                        showItemEditor = true
+                    },
+                    onItemDelete = { index ->
+                        editableDraft =
+                            editableDraft.copy(
+                                items = editableDraft.items.filterIndexed { i, _ -> i != index },
+                            )
+                    },
+                    onAddItem = {
+                        isNewItem = true
+                        editingItemIndex = null
+                        showItemEditor = true
+                    },
+                )
+            }
             item { TotalsSection(draft = editableDraft, onEdit = { editableDraft = it }) }
         }
     }
@@ -158,11 +154,12 @@ fun ReviewScreen(
         // ditunjuk index. Index bisa saja sudah tidak valid kalau daftar berubah
         // (mis. item dihapus sementara dialog terbuka), jadi di-clamp.
         val index = editingItemIndex
-        val editing = if (isNewItem || index == null) {
-            ReceiptItemDraft()
-        } else {
-            editableDraft.items.getOrNull(index) ?: ReceiptItemDraft()
-        }
+        val editing =
+            if (isNewItem || index == null) {
+                ReceiptItemDraft()
+            } else {
+                editableDraft.items.getOrNull(index) ?: ReceiptItemDraft()
+            }
         ItemEditorDialog(
             item = editing,
             onDismiss = {
@@ -170,18 +167,20 @@ fun ReviewScreen(
                 editingItemIndex = null
             },
             onConfirm = { updated ->
-                editableDraft = if (isNewItem || index == null) {
-                    editableDraft.copy(items = editableDraft.items + updated)
-                } else {
-                    editableDraft.copy(
-                        items = editableDraft.items.mapIndexed { i, existing ->
-                            if (i == index) updated else existing
-                        },
-                    )
-                }
+                editableDraft =
+                    if (isNewItem || index == null) {
+                        editableDraft.copy(items = editableDraft.items + updated)
+                    } else {
+                        editableDraft.copy(
+                            items =
+                                editableDraft.items.mapIndexed { i, existing ->
+                                    if (i == index) updated else existing
+                                },
+                        )
+                    }
                 showItemEditor = false
                 editingItemIndex = null
-            }
+            },
         )
     }
 
@@ -213,7 +212,10 @@ fun ReviewScreen(
 }
 
 @Composable
-fun MerchantSection(draft: ReceiptDraft, onEdit: (ReceiptDraft) -> Unit) {
+fun MerchantSection(
+    draft: ReceiptDraft,
+    onEdit: (ReceiptDraft) -> Unit,
+) {
     var name by remember(draft.merchantName) { mutableStateOf(draft.merchantName.orEmpty()) }
     // Dulu `npwp` cuma state lokal tanpa onEdit dan tanpa kolom di database:
     // user bisa mengetik NPWP, lalu nilainya hilang saat Save. Sekarang
@@ -222,9 +224,10 @@ fun MerchantSection(draft: ReceiptDraft, onEdit: (ReceiptDraft) -> Unit) {
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow
-        )
+        colors =
+            CardDefaults.cardColors(
+                containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow,
+            ),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -240,7 +243,7 @@ fun MerchantSection(draft: ReceiptDraft, onEdit: (ReceiptDraft) -> Unit) {
                 },
                 label = { Text(stringResource(R.string.merchant_name)) },
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true
+                singleLine = true,
             )
             Spacer(modifier = Modifier.size(8.dp))
             TextField(
@@ -251,21 +254,25 @@ fun MerchantSection(draft: ReceiptDraft, onEdit: (ReceiptDraft) -> Unit) {
                 },
                 label = { Text(stringResource(R.string.npwp)) },
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true
+                singleLine = true,
             )
         }
     }
 }
 
 @Composable
-fun DateSection(draft: ReceiptDraft, onEdit: (ReceiptDraft) -> Unit) {
+fun DateSection(
+    draft: ReceiptDraft,
+    onEdit: (ReceiptDraft) -> Unit,
+) {
     var dateStr by remember(draft.transactionDate) { mutableStateOf(draft.transactionDate?.let { formatDate(it) } ?: "") }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow
-        )
+        colors =
+            CardDefaults.cardColors(
+                containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow,
+            ),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -288,7 +295,7 @@ fun DateSection(draft: ReceiptDraft, onEdit: (ReceiptDraft) -> Unit) {
                 },
                 label = { Text(stringResource(R.string.date_format_hint)) },
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true
+                singleLine = true,
             )
         }
     }
@@ -296,7 +303,10 @@ fun DateSection(draft: ReceiptDraft, onEdit: (ReceiptDraft) -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CategorySection(draft: ReceiptDraft, onEdit: (ReceiptDraft) -> Unit) {
+fun CategorySection(
+    draft: ReceiptDraft,
+    onEdit: (ReceiptDraft) -> Unit,
+) {
     val repository: com.notarapi.tidynote.data.receipt.ReceiptRepository =
         org.koin.compose.koinInject()
     var categories by remember { mutableStateOf<List<com.notarapi.tidynote.core.model.CategoryEntity>>(emptyList()) }
@@ -308,9 +318,10 @@ fun CategorySection(draft: ReceiptDraft, onEdit: (ReceiptDraft) -> Unit) {
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow
-        )
+        colors =
+            CardDefaults.cardColors(
+                containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow,
+            ),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -320,7 +331,7 @@ fun CategorySection(draft: ReceiptDraft, onEdit: (ReceiptDraft) -> Unit) {
             Spacer(modifier = Modifier.size(8.dp))
             androidx.compose.material3.ExposedDropdownMenuBox(
                 expanded = expanded,
-                onExpandedChange = { expanded = !expanded }
+                onExpandedChange = { expanded = !expanded },
             ) {
                 TextField(
                     value = selected?.name ?: "Pilih kategori",
@@ -329,7 +340,7 @@ fun CategorySection(draft: ReceiptDraft, onEdit: (ReceiptDraft) -> Unit) {
                     modifier = Modifier.fillMaxWidth().height(48.dp),
                     singleLine = true,
                     readOnly = true,
-                    trailingIcon = { Icon(Icons.Filled.ExpandMore, contentDescription = "Buka pilihan kategori") }
+                    trailingIcon = { Icon(Icons.Filled.ExpandMore, contentDescription = "Buka pilihan kategori") },
                 )
                 androidx.compose.material3.DropdownMenu(
                     expanded = expanded,
@@ -341,10 +352,10 @@ fun CategorySection(draft: ReceiptDraft, onEdit: (ReceiptDraft) -> Unit) {
                                 onClick = {
                                     expanded = false
                                     onEdit(draft.copy(categoryId = cat.id))
-                                }
+                                },
                             )
                         }
-                    }
+                    },
                 )
             }
         }
@@ -358,19 +369,20 @@ fun ItemsSection(
     // diedit/dihapus secara terpisah.
     onItemEdit: (Int) -> Unit,
     onItemDelete: (Int) -> Unit,
-    onAddItem: () -> Unit
+    onAddItem: () -> Unit,
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow
-        )
+        colors =
+            CardDefaults.cardColors(
+                containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow,
+            ),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(stringResource(R.string.items), fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 IconButton(onClick = onAddItem) {
@@ -382,18 +394,26 @@ fun ItemsSection(
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
                     horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column {
                         Text(item.name, fontWeight = FontWeight.Medium)
-                        Text("${item.quantity} x ${formatCurrency(item.unitPriceMinor)}", fontSize = 12.sp, color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            "${item.quantity} x ${formatCurrency(item.unitPriceMinor)}",
+                            fontSize = 12.sp,
+                            color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                     Row {
                         IconButton(onClick = { onItemEdit(index) }) {
                             Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.edit))
                         }
                         IconButton(onClick = { onItemDelete(index) }) {
-                            Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete), tint = androidx.compose.material3.MaterialTheme.colorScheme.error)
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = stringResource(R.string.delete),
+                                tint = androidx.compose.material3.MaterialTheme.colorScheme.error,
+                            )
                         }
                     }
                 }
@@ -406,7 +426,10 @@ fun ItemsSection(
 }
 
 @Composable
-fun TotalsSection(draft: ReceiptDraft, onEdit: (ReceiptDraft) -> Unit) {
+fun TotalsSection(
+    draft: ReceiptDraft,
+    onEdit: (ReceiptDraft) -> Unit,
+) {
     var subtotal by remember(draft.subtotalMinor) { mutableStateOf(draft.subtotalMinor ?: 0L) }
     var tax by remember(draft.taxMinor) { mutableStateOf(draft.taxMinor ?: 0L) }
     var total by remember(draft.totalMinor) { mutableStateOf(draft.totalMinor ?: 0L) }
@@ -417,9 +440,10 @@ fun TotalsSection(draft: ReceiptDraft, onEdit: (ReceiptDraft) -> Unit) {
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow
-        )
+        colors =
+            CardDefaults.cardColors(
+                containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow,
+            ),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(stringResource(R.string.totals), fontWeight = FontWeight.Bold, fontSize = 16.sp)
@@ -434,7 +458,7 @@ fun TotalsSection(draft: ReceiptDraft, onEdit: (ReceiptDraft) -> Unit) {
                         onEdit(draft.copy(subtotalMinor = subtotal))
                     },
                     modifier = Modifier.width(120.dp),
-                    singleLine = true
+                    singleLine = true,
                 )
             }
             Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
@@ -447,7 +471,7 @@ fun TotalsSection(draft: ReceiptDraft, onEdit: (ReceiptDraft) -> Unit) {
                         onEdit(draft.copy(discountMinor = discount))
                     },
                     modifier = Modifier.width(120.dp),
-                    singleLine = true
+                    singleLine = true,
                 )
             }
             Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
@@ -460,7 +484,7 @@ fun TotalsSection(draft: ReceiptDraft, onEdit: (ReceiptDraft) -> Unit) {
                         onEdit(draft.copy(taxMinor = tax))
                     },
                     modifier = Modifier.width(120.dp),
-                    singleLine = true
+                    singleLine = true,
                 )
             }
             Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
@@ -473,7 +497,7 @@ fun TotalsSection(draft: ReceiptDraft, onEdit: (ReceiptDraft) -> Unit) {
                         onEdit(draft.copy(totalMinor = total))
                     },
                     modifier = Modifier.width(120.dp),
-                    singleLine = true
+                    singleLine = true,
                 )
             }
             Row(modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
@@ -486,7 +510,7 @@ fun TotalsSection(draft: ReceiptDraft, onEdit: (ReceiptDraft) -> Unit) {
                         onEdit(draft.copy(invoiceNumber = it.ifBlank { null }))
                     },
                     modifier = Modifier.width(160.dp),
-                    singleLine = true
+                    singleLine = true,
                 )
             }
         }
@@ -506,7 +530,7 @@ fun ConfidenceBadge(confidence: Float) {
 fun ItemEditorDialog(
     item: ReceiptItemDraft,
     onDismiss: () -> Unit,
-    onConfirm: (ReceiptItemDraft) -> Unit
+    onConfirm: (ReceiptItemDraft) -> Unit,
 ) {
     var name by remember(item) { mutableStateOf(item.name) }
     var qtyText by remember(item) { mutableStateOf(item.quantity.toString()) }
@@ -522,21 +546,21 @@ fun ItemEditorDialog(
                     onValueChange = { name = it },
                     label = { Text(stringResource(R.string.items)) },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
                 )
                 TextField(
                     value = qtyText,
                     onValueChange = { qtyText = it.filter { c -> c.isDigit() } },
                     label = { Text("Qty") },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
                 )
                 TextField(
                     value = priceText,
                     onValueChange = { priceText = it.filter { c -> c.isDigit() } },
                     label = { Text(stringResource(R.string.total)) },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
                 )
             }
         },
@@ -550,15 +574,15 @@ fun ItemEditorDialog(
                             name = name.ifBlank { "Item" },
                             quantity = qty,
                             unitPriceMinor = price,
-                            totalMinor = price * qty
-                        )
+                            totalMinor = price * qty,
+                        ),
                     )
-                }
+                },
             ) { Text(stringResource(R.string.save)) }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
-        }
+        },
     )
 }
 
@@ -571,7 +595,10 @@ fun ItemEditorDialog(
  *   "12 Jan 2026, 14:30"  "12 Jan 2026"  "12/01/2026"  "2026-01-12"
  * Jam dianggap 00:00 kalau tidak disebutkan.
  */
-internal fun parseDateInput(raw: String, zone: ZoneId = ZoneId.systemDefault()): Instant? {
+internal fun parseDateInput(
+    raw: String,
+    zone: ZoneId = ZoneId.systemDefault(),
+): Instant? {
     val text = raw.trim().replace(Regex("\\s+"), " ")
     if (text.isEmpty()) return null
 
@@ -604,8 +631,11 @@ internal fun parseDateInput(raw: String, zone: ZoneId = ZoneId.systemDefault()):
     }
     // Jam saja tidak masuk akal untuk struk, tapi "12 Jan 2026 14" masih mungkin.
     runCatching {
-        LocalDate.parse(text, DateTimeFormatter.ofPattern("dd MMM yyyy", locale))
-            .atTime(LocalTime.MIDNIGHT).atZone(zone).toInstant()
+        LocalDate
+            .parse(text, DateTimeFormatter.ofPattern("dd MMM yyyy", locale))
+            .atTime(LocalTime.MIDNIGHT)
+            .atZone(zone)
+            .toInstant()
     }.getOrNull()?.let { return it }
 
     return null

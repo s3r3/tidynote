@@ -5,18 +5,27 @@ import com.notarapi.tidynote.core.database.MerchantTotal
 import com.notarapi.tidynote.core.database.ReceiptRow
 import com.notarapi.tidynote.core.model.ReceiptDraft
 import com.notarapi.tidynote.core.model.ReceiptEntity
-import com.notarapi.tidynote.core.model.ReceiptItemEntity
 import com.notarapi.tidynote.core.model.ReceiptWithItems
 import kotlinx.coroutines.flow.Flow
 
 interface ReceiptRepository {
     suspend fun saveDraft(draft: ReceiptDraft): Long
+
     suspend fun updateReceipt(entity: ReceiptEntity)
+
     suspend fun deleteReceipt(id: Long)
+
     suspend fun deleteAll()
+
     suspend fun getReceiptById(id: Long): ReceiptEntity?
+
     suspend fun getReceiptWithItems(id: Long): ReceiptWithItems?
-    fun getReceiptsPaged(limit: Int, offset: Int): Flow<List<ReceiptEntity>>
+
+    fun getReceiptsPaged(
+        limit: Int,
+        offset: Int,
+    ): Flow<List<ReceiptEntity>>
+
     fun getPendingReceipts(): Flow<List<ReceiptEntity>>
 
     /**
@@ -32,8 +41,13 @@ interface ReceiptRepository {
     ): Flow<List<ReceiptEntity>>
 
     suspend fun getPendingCount(): Int
+
     suspend fun getTotalThisMonth(startOfMonth: Long): Long
-    suspend fun updateReviewStatus(id: Long, status: String)
+
+    suspend fun updateReviewStatus(
+        id: Long,
+        status: String,
+    )
 
     /**
      * Salin struk beserta item-itemnya sebagai baris baru.
@@ -51,7 +65,10 @@ interface ReceiptRepository {
      * diganti seluruhnya supaya hasilnya persis seperti yang dilihat user di
      * layar Review — termasuk kalau ada item yang dihapus.
      */
-    suspend fun saveExisting(draft: ReceiptDraft, receiptId: Long): Long
+    suspend fun saveExisting(
+        draft: ReceiptDraft,
+        receiptId: Long,
+    ): Long
 
     /**
      * Muat struk tersimpan sebagai [ReceiptDraft] supaya bisa dibuka di layar
@@ -67,8 +84,14 @@ interface ReceiptRepository {
         categoryId: Long? = null,
         reviewStatus: String? = null,
     ): List<ReceiptRow>
-    suspend fun getDashboardSummary(start: Long?, end: Long?): DashboardSummary
+
+    suspend fun getDashboardSummary(
+        start: Long?,
+        end: Long?,
+    ): DashboardSummary
+
     fun categories(): Flow<List<com.notarapi.tidynote.core.model.CategoryEntity>>
+
     suspend fun restoreFromBackup(rows: List<Pair<ReceiptDraft, String>>): Int
 }
 
@@ -77,5 +100,5 @@ data class DashboardSummary(
     val count: Int = 0,
     val pendingCount: Int = 0,
     val byCategory: List<CategoryTotal> = emptyList(),
-    val topMerchants: List<MerchantTotal> = emptyList()
+    val topMerchants: List<MerchantTotal> = emptyList(),
 )

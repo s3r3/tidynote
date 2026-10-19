@@ -1,0 +1,33 @@
+# Konfigurasi ktlint untuk TidyNote.
+#
+# Tanpa file ini, ktlint memakai default-nya dan menandai setiap composable
+# sebagai pelanggaran `function-naming` — karena default-nya mewajibkan camelCase
+# untuk semua fungsi. Compose mewajibkan sebaliknya: composable yang mengeluarkan
+# UI ditulis PascalCase supaya terbaca seperti tipe, dan itulah yang dipakai
+# seluruh layar di proyek ini (`ReviewScreen`, `DetailScreen`, ...).
+# Menuruti default ktlint berarti melanggar konvensi Compose.
+
+[*.{kt,kts}]
+# Composable PascalCase adalah konvensi resmi Compose; jangan ditandai.
+ktlint_function_naming_ignore_when_annotated_with = Composable
+
+# 140 karakter cukup untuk file Compose yang bersarang dalam; beberapa baris
+# `MaterialTheme.colorScheme.*` memang panjang dan memecahnya justru mengaburkan
+# strukturnya.
+max_line_length = 140
+
+# Wildcard import dipakai sengaja di tiga file yang menyentuh hampir semua
+# entity Room (`AppDatabase`, `ReceiptDao`, `ReceiptRepositoryImpl`) — daftar
+# import eksplisitnya panjang dan berubah tiap kali entity ditambah.
+# Aturan ini dimatikan hanya untuk file-file itu; sisanya tetap diperiksa.
+[app/src/main/java/com/notarapi/tidynote/core/database/AppDatabase.kt]
+ktlint_standard_no-wildcard-imports = disabled
+
+[app/src/main/java/com/notarapi/tidynote/core/database/ReceiptDao.kt]
+ktlint_standard_no-wildcard-imports = disabled
+
+[app/src/main/java/com/notarapi/tidynote/data/receipt/ReceiptRepositoryImpl.kt]
+ktlint_standard_no-wildcard-imports = disabled
+
+[app/src/test/java/com/notarapi/tidynote/extraction/parser/ReceiptParserTest.kt]
+ktlint_standard_no-wildcard-imports = disabled

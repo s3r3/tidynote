@@ -19,21 +19,26 @@ private val Context.prefsStore: DataStore<Preferences> by preferencesDataStore(n
  * Sekali jalan akan memigrasikan nilai lama dari SharedPreferences agar
  * onboarding/opt-in AI/token backend pengguna tidak hilang.
  */
-class AppPreferences(private val context: Context) {
-
+class AppPreferences(
+    private val context: Context,
+) {
     val onboardingDone: Flow<Boolean> = context.prefsStore.data.map { it[KEY_ONBOARDING] ?: false }
     val cloudAiEnabled: Flow<Boolean> = context.prefsStore.data.map { it[KEY_AI] ?: false }
     val backendUrl: Flow<String> = context.prefsStore.data.map { it[KEY_URL].orEmpty() }
-    val backendToken: Flow<String> = context.prefsStore.data.map {
-        it[KEY_TOKEN] ?: it[KEY_LEGACY].orEmpty()
-    }
+    val backendToken: Flow<String> =
+        context.prefsStore.data.map {
+            it[KEY_TOKEN] ?: it[KEY_LEGACY].orEmpty()
+        }
     val currency: Flow<String> = context.prefsStore.data.map { it[KEY_CURRENCY] ?: "IDR" }
 
     fun setOnboardingDone(done: Boolean) = edit { it[KEY_ONBOARDING] = done }
 
     fun setCloudAiEnabled(enabled: Boolean) = edit { it[KEY_AI] = enabled }
 
-    fun setBackendConfig(baseUrl: String, token: String) = edit {
+    fun setBackendConfig(
+        baseUrl: String,
+        token: String,
+    ) = edit {
         it[KEY_URL] = baseUrl.trim()
         it[KEY_TOKEN] = token
         it.remove(KEY_LEGACY)
@@ -60,8 +65,9 @@ class AppPreferences(private val context: Context) {
                 legacy.getBoolean("onboarding_done", false).let { store[KEY_ONBOARDING] = it }
                 legacy.getBoolean("cloud_ai_enabled", false).let { store[KEY_AI] = it }
                 legacy.getString("llm_backend_url", null)?.let { store[KEY_URL] = it }
-                val token = legacy.getString("llm_backend_token", null)
-                    ?: legacy.getString("llm_api_key", null)
+                val token =
+                    legacy.getString("llm_backend_token", null)
+                        ?: legacy.getString("llm_api_key", null)
                 token?.let { store[KEY_TOKEN] = it }
                 legacy.getString("currency", null)?.let { store[KEY_CURRENCY] = it }
             }

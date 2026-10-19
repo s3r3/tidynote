@@ -8,9 +8,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 
 object ConfidenceColor {
-    fun get(confidence: Float): Pair<Color, ImageVector> = when {
-        confidence >= 0.8f -> Color(0xFF2E7D32) to Icons.Filled.CheckCircle   // Green
-        confidence >= 0.5f -> Color(0xFFF57F17) to Icons.Filled.Warning        // Amber
-        else -> Color(0xFFC62828) to Icons.Filled.Info                         // Red
-    }
+    fun get(confidence: Float): Pair<Color, ImageVector> =
+        when {
+            confidence >= 0.8f -> Color(0xFF2E7D32) to Icons.Filled.CheckCircle // Green
+            confidence >= 0.5f -> Color(0xFFF57F17) to Icons.Filled.Warning // Amber
+            else -> Color(0xFFC62828) to Icons.Filled.Info // Red
+        }
 }

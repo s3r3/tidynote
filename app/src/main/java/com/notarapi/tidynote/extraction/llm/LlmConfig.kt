@@ -16,7 +16,6 @@ import com.notarapi.tidynote.BuildConfig
  * AI tidak pernah aktif tanpa opt-in pengguna ([aiEnabled]) DAN sumber yang valid.
  */
 object LlmConfig {
-
     val devApiKey: String get() = BuildConfig.LLM_API_KEY
     val devBaseUrl: String get() = BuildConfig.LLM_BASE_URL
     val devModel: String get() = BuildConfig.LLM_MODEL
@@ -82,10 +81,11 @@ object LlmConfig {
         backendUrl: String,
         backendToken: String,
         directApiKey: String = "",
-    ): String = when {
-        backendUrl.isNotBlank() && backendToken.isNotBlank() -> "Backend proxy Anda"
-        directApiKey.isNotBlank() -> "API key di aplikasi (provider langsung)"
-        hasDevKey -> "Mode development (API key di APK — jangan disebar)"
-        else -> "Tidak aktif (ekstraksi lokal saja)"
-    }
+    ): String =
+        when {
+            backendUrl.isNotBlank() && backendToken.isNotBlank() -> "Backend proxy Anda"
+            directApiKey.isNotBlank() -> "API key di aplikasi (provider langsung)"
+            hasDevKey -> "Mode development (API key di APK — jangan disebar)"
+            else -> "Tidak aktif (ekstraksi lokal saja)"
+        }
 }

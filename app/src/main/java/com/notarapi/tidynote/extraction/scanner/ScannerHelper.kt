@@ -10,16 +10,18 @@ import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 
 class ScannerHelper {
-
-    private val scannerOptions: GmsDocumentScannerOptions = GmsDocumentScannerOptions.Builder()
-        .setScannerMode(GmsDocumentScannerOptions.SCANNER_MODE_FULL)
-        .setResultFormats(GmsDocumentScannerOptions.RESULT_FORMAT_JPEG)
-        .setGalleryImportAllowed(true)
-        .build()
+    private val scannerOptions: GmsDocumentScannerOptions =
+        GmsDocumentScannerOptions
+            .Builder()
+            .setScannerMode(GmsDocumentScannerOptions.SCANNER_MODE_FULL)
+            .setResultFormats(GmsDocumentScannerOptions.RESULT_FORMAT_JPEG)
+            .setGalleryImportAllowed(true)
+            .build()
 
     private val scannerClient: GmsDocumentScanner = GmsDocumentScanning.getClient(scannerOptions)
 
-    suspend fun getScanIntentSender(activity: Activity): IntentSender = withContext(Dispatchers.IO) {
-        scannerClient.getStartScanIntent(activity).await()
-    }
+    suspend fun getScanIntentSender(activity: Activity): IntentSender =
+        withContext(Dispatchers.IO) {
+            scannerClient.getStartScanIntent(activity).await()
+        }
 }

@@ -18,17 +18,14 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.notarapi.tidynote.R
 import com.notarapi.tidynote.core.model.ReceiptDraft
 import com.notarapi.tidynote.data.receipt.ReceiptRepository
 import com.notarapi.tidynote.extraction.ExtractionOrchestrator
-import com.notarapi.tidynote.extraction.ocr.OcrHelper
-import com.notarapi.tidynote.extraction.parser.ReceiptParser
 import com.notarapi.tidynote.extraction.scanner.ScannerHelper
 import com.notarapi.tidynote.feature.dashboard.DashboardScreen
 import com.notarapi.tidynote.feature.detail.DetailScreen
-import com.notarapi.tidynote.feature.home.HomeScreen
 import com.notarapi.tidynote.feature.history.HistoryScreen
+import com.notarapi.tidynote.feature.home.HomeScreen
 import com.notarapi.tidynote.feature.onboarding.OnboardingScreen
 import com.notarapi.tidynote.feature.review.ReviewScreen
 import com.notarapi.tidynote.feature.scan.ScanScreen
@@ -51,10 +48,12 @@ class MainActivity : ComponentActivity() {
                     val navController = rememberNavController()
                     val json = com.notarapi.tidynote.core.serialization.AppJson
                     val appContext = androidx.compose.ui.platform.LocalContext.current.applicationContext
-                    val onboardingDone = remember {
-                        appContext.getSharedPreferences("tidynote_prefs", android.content.Context.MODE_PRIVATE)
-                            .getBoolean("onboarding_done", false)
-                    }
+                    val onboardingDone =
+                        remember {
+                            appContext
+                                .getSharedPreferences("tidynote_prefs", android.content.Context.MODE_PRIVATE)
+                                .getBoolean("onboarding_done", false)
+                        }
                     NavHost(navController, startDestination = if (onboardingDone) "home" else "onboarding") {
                         composable("home") {
                             HomeScreen(
@@ -85,7 +84,7 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onNavigateToHistory = { navController.navigate("history") },
                                 onNavigateToSettings = { navController.navigate("settings") },
-                                onNavigateToDashboard = { navController.navigate("dashboard") }
+                                onNavigateToDashboard = { navController.navigate("dashboard") },
                             )
                         }
                         // Mode edit: buka struk yang SUDAH tersimpan di layar Review.
@@ -134,26 +133,29 @@ class MainActivity : ComponentActivity() {
                             // Deserialisasi tanpa guard melempar SerializationException
                             // DI DALAM composition -> aplikasi crash. Fallback ke draft
                             // kosong: user isi manual, lebih baik daripada mati.
-                            val draft = if (draftJson.isNotEmpty()) {
-                                runCatching { json.decodeFromString<ReceiptDraft>(draftJson) }
-                                    .getOrNull() ?: ReceiptDraft()
-                            } else {
-                                ReceiptDraft()
-                            }
+                            val draft =
+                                if (draftJson.isNotEmpty()) {
+                                    runCatching { json.decodeFromString<ReceiptDraft>(draftJson) }
+                                        .getOrNull() ?: ReceiptDraft()
+                                } else {
+                                    ReceiptDraft()
+                                }
                             val repository: ReceiptRepository = org.koin.compose.koinInject()
                             val scope = rememberCoroutineScope()
                             val ctx = androidx.compose.ui.platform.LocalContext.current
                             val prefs = ctx.getSharedPreferences("tidynote_prefs", android.content.Context.MODE_PRIVATE)
                             val aiEnabled = prefs.getBoolean("cloud_ai_enabled", false)
                             val backendUrl = prefs.getString("llm_backend_url", "").orEmpty()
-                            val backendToken = prefs.getString("llm_backend_token", null)
-                                ?: prefs.getString("llm_api_key", "").orEmpty()
+                            val backendToken =
+                                prefs.getString("llm_backend_token", null)
+                                    ?: prefs.getString("llm_api_key", "").orEmpty()
                             val directApiKey = prefs.getString("direct_api_key", "").orEmpty()
                             val directBaseUrl = prefs.getString("direct_base_url", "").orEmpty()
                             val directModel = prefs.getString("direct_model", "").orEmpty()
                             // Resolver AI terpusat: backend → API key di aplikasi → key dev → null.
-                            val enricher = com.notarapi.tidynote.extraction.llm.LlmConfig
-                                .build(aiEnabled, backendUrl, backendToken, directApiKey, directBaseUrl, directModel)
+                            val enricher =
+                                com.notarapi.tidynote.extraction.llm.LlmConfig
+                                    .build(aiEnabled, backendUrl, backendToken, directApiKey, directBaseUrl, directModel)
                             ReviewScreen(
                                 draft = draft,
                                 onSave = { edited ->
@@ -169,36 +171,42 @@ class MainActivity : ComponentActivity() {
                                 },
                                 // plan.md §7.5: hanya jika user menekan tombol + sudah opt-in
                                 // dan ada sumber AI (backend pengguna atau key mode development).
-                                onFixWithAi = if (enricher != null) {
-                                    { ocr ->
-                                        scope.launch {
-                                            val fixed = try {
-                                                enricher.extractFromOcr(ocr)
-                                            } catch (_: Exception) {
-                                                draft
+                                onFixWithAi =
+                                    if (enricher != null) {
+                                        { ocr ->
+                                            scope.launch {
+                                                val fixed =
+                                                    try {
+                                                        enricher.extractFromOcr(ocr)
+                                                    } catch (_: Exception) {
+                                                        draft
+                                                    }
+                                                val validated =
+                                                    com.notarapi.tidynote.extraction.ReceiptValidator
+                                                        .validate(fixed)
+                                                DraftHolder.currentDraft =
+                                                    json.encodeToString(
+                                                        ReceiptDraft.serializer(),
+                                                        validated.copy(rawOcrText = ocr),
+                                                    )
+                                                navController.popBackStack()
+                                                navController.navigate("review")
                                             }
-                                            val validated = com.notarapi.tidynote.extraction.ReceiptValidator.validate(fixed)
-                                            DraftHolder.currentDraft = json.encodeToString(
-                                                ReceiptDraft.serializer(),
-                                                validated.copy(rawOcrText = ocr),
-                                            )
-                                            navController.popBackStack()
-                                            navController.navigate("review")
                                         }
-                                    }
-                                } else {
-                                    null
-                                },
+                                    } else {
+                                        null
+                                    },
                             )
                         }
                         composable(
                             route = "history?status={status}",
-                            arguments = listOf(
-                                androidx.navigation.navArgument("status") {
-                                    type = androidx.navigation.NavType.StringType
-                                    defaultValue = "ALL"
-                                },
-                            ),
+                            arguments =
+                                listOf(
+                                    androidx.navigation.navArgument("status") {
+                                        type = androidx.navigation.NavType.StringType
+                                        defaultValue = "ALL"
+                                    },
+                                ),
                         ) { entry ->
                             HistoryScreen(
                                 onNavigateBack = { navController.popBackStack() },
@@ -214,10 +222,11 @@ class MainActivity : ComponentActivity() {
                                 receiptId = id,
                                 onBack = { navController.popBackStack() },
                                 onShare = { text ->
-                                    val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                                        type = "text/plain"
-                                        putExtra(android.content.Intent.EXTRA_TEXT, text)
-                                    }
+                                    val intent =
+                                        android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                            type = "text/plain"
+                                            putExtra(android.content.Intent.EXTRA_TEXT, text)
+                                        }
                                     this@MainActivity.startActivity(android.content.Intent.createChooser(intent, "Bagikan struk"))
                                 },
                                 // FileProvider sudah terpasang di manifest dan
@@ -228,16 +237,18 @@ class MainActivity : ComponentActivity() {
                                 onShareImage = { path ->
                                     runCatching {
                                         val file = java.io.File(path)
-                                        val uri = androidx.core.content.FileProvider.getUriForFile(
-                                            this@MainActivity,
-                                            "${packageName}.fileprovider",
-                                            file,
-                                        )
-                                        val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                                            type = "image/jpeg"
-                                            putExtra(android.content.Intent.EXTRA_STREAM, uri)
-                                            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                        }
+                                        val uri =
+                                            androidx.core.content.FileProvider.getUriForFile(
+                                                this@MainActivity,
+                                                "$packageName.fileprovider",
+                                                file,
+                                            )
+                                        val intent =
+                                            android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                                type = "image/jpeg"
+                                                putExtra(android.content.Intent.EXTRA_STREAM, uri)
+                                                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                            }
                                         this@MainActivity.startActivity(
                                             android.content.Intent.createChooser(intent, "Bagikan gambar struk"),
                                         )

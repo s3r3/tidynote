@@ -16,13 +16,16 @@ fun formatCurrencyOrDash(amountRupiah: Long?): String {
     return formatCurrency(amountRupiah)
 }
 
+/** Batas digit agar input asal-asalan tidak melimpahi Long dan melempar NumberFormatException. */
+private const val MAX_INPUT_DIGITS = 12
+
 fun parseRupiahInput(str: String): Long {
     // Input field review: "15000", "15.000", "Rp 15.000" -> 15000
     val t = str.trim()
     if (t.isEmpty()) return 0L
     val digits = t.filter { it.isDigit() }
     if (digits.isEmpty()) return 0L
-    return digits.take(12).toLongOrNull() ?: 0L
+    return digits.take(MAX_INPUT_DIGITS).toLongOrNull() ?: 0L
 }
 
 fun formatDate(epochMilli: Long?): String {

@@ -1,22 +1,22 @@
 package com.notarapi.tidynote.extraction.parser
 
 import com.notarapi.tidynote.core.model.ExtractionSource
-import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Test
 
 class ReceiptParserTest {
-
     private val parser = ReceiptParser()
 
     @Test
     fun `parse menyimpan rupiah tanpa dikali 100`() {
-        val text = """
+        val text =
+            """
             TOKO MAKMUR
             Nasi Goreng 15.000
             Teh Manis 5.000
             Subtotal Rp 20.000
             Total Rp 20.000
-        """.trimIndent()
+            """.trimIndent()
 
         val draft = parser.parse(text)
 
@@ -28,11 +28,12 @@ class ReceiptParserTest {
 
     @Test
     fun `parse menangani format 25_000 sebagai 25000`() {
-        val text = """
+        val text =
+            """
             WARUNG BU TEJO
             Mie Ayam 25.000
             Total 25.000
-        """.trimIndent()
+            """.trimIndent()
 
         val draft = parser.parse(text)
 
@@ -49,4 +50,3 @@ class ReceiptParserTest {
         assertTrue(draft.confidence.needsReview)
     }
 }
-

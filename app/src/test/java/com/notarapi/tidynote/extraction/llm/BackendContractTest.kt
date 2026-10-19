@@ -6,7 +6,6 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class BackendContractTest {
-
     @Test
     fun `url memakai path baru dan legacy`() {
         assertEquals(
@@ -35,9 +34,10 @@ class BackendContractTest {
 
     @Test
     fun `extractProviderContent membaca content choices pertama`() {
-        val provider = """
+        val provider =
+            """
             {"choices":[{"message":{"role":"assistant","content":"{\"totalMinor\":25000}"}}]}
-        """.trimIndent()
+            """.trimIndent()
         assertEquals("{\"totalMinor\":25000}", BackendContract.extractProviderContent(provider))
     }
 

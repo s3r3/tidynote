@@ -11,7 +11,7 @@ import java.time.Instant
 enum class ExtractionSource : Parcelable {
     LOCAL_PARSER,
     LLM_FALLBACK,
-    MANUAL_INPUT
+    MANUAL_INPUT,
 }
 
 @Serializable
@@ -22,14 +22,15 @@ data class FieldConfidence(
     val total: Float = 0f,
     val items: Float = 0f,
     val tax: Float = 0f,
-    val discount: Float = 0f
+    val discount: Float = 0f,
 ) : Parcelable {
     val average: Float
-        get() = listOf(merchant, date, total, items, tax, discount)
-            .filter { it > 0f }
-            .average()
-            .toFloat()
-            .takeIf { it.isFinite() } ?: 0f
+        get() =
+            listOf(merchant, date, total, items, tax, discount)
+                .filter { it > 0f }
+                .average()
+                .toFloat()
+                .takeIf { it.isFinite() } ?: 0f
 
     val needsReview: Boolean
         get() = average < 0.7f
@@ -42,7 +43,7 @@ data class ReceiptItemDraft(
     val quantity: Int = 1,
     val unitPriceMinor: Long = 0,
     val totalMinor: Long = 0,
-    val confidence: Float = 0f
+    val confidence: Float = 0f,
 ) : Parcelable {
     val lineTotal: Long
         get() = if (totalMinor > 0) totalMinor else quantity.toLong() * unitPriceMinor
@@ -68,7 +69,7 @@ data class ReceiptDraft(
     val rawOcrText: String = "",
     val source: ExtractionSource = ExtractionSource.LOCAL_PARSER,
     val confidence: FieldConfidence = FieldConfidence(),
-    val imagePath: String? = null
+    val imagePath: String? = null,
 ) : Parcelable {
     val itemSumMinor: Long
         get() = items.sumOf { it.lineTotal }

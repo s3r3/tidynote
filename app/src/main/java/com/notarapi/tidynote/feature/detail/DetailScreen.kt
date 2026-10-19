@@ -35,7 +35,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
@@ -61,7 +60,6 @@ fun DetailScreen(
     onEdit: (Long) -> Unit = {},
 ) {
     val repository: ReceiptRepository = koinInject()
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var data by remember { mutableStateOf<ReceiptWithItems?>(null) }
     var confirmDelete by remember { mutableStateOf(false) }
@@ -95,7 +93,9 @@ fun DetailScreen(
             }
             IconButton(onClick = {
                 val d = data ?: return@IconButton
-                val text = "Struk ${d.merchant?.name ?: "-"} ${formatCurrency(d.receipt.totalMinor ?: 0)} ${formatDate(d.receipt.transactionDate)}"
+                val text = "Struk ${d.merchant?.name ?: "-"} ${formatCurrency(
+                    d.receipt.totalMinor ?: 0,
+                )} ${formatDate(d.receipt.transactionDate)}"
                 onShare(text)
             }) { Icon(Icons.Default.Share, contentDescription = "Bagikan") }
             // R.string.duplicate sudah lama ada di strings.xml tapi tombolnya
@@ -111,7 +111,14 @@ fun DetailScreen(
         if (d == null) {
             Column(Modifier.fillMaxSize().padding(padding).padding(16.dp)) { Text("Memuat...") }
         } else {
-            Column(Modifier.fillMaxSize().padding(padding).padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
                 val img = d.images.firstOrNull()?.imagePath ?: d.receipt.imagePath
                 if (!img.isNullOrBlank() && File(img).exists()) {
                     AsyncImage(model = File(img), contentDescription = "Gambar struk", modifier = Modifier.fillMaxWidth().height(280.dp))
@@ -131,11 +138,17 @@ fun DetailScreen(
                         }
                         Text("Status: ${d.receipt.reviewStatus} - Sumber: ${d.receipt.source}")
                         Text("Total: ${formatCurrency(d.receipt.totalMinor ?: 0)}", fontWeight = FontWeight.Bold)
-                        Text("Subtotal ${formatCurrency(d.receipt.subtotalMinor ?: 0)} - PPN ${formatCurrency(d.receipt.taxMinor ?: 0)} - Diskon ${formatCurrency(d.receipt.discountMinor ?: 0)}")
+                        Text(
+                            "Subtotal ${formatCurrency(
+                                d.receipt.subtotalMinor ?: 0,
+                            )} - PPN ${formatCurrency(d.receipt.taxMinor ?: 0)} - Diskon ${formatCurrency(
+                                d.receipt.discountMinor ?: 0,
+                            )}",
+                        )
                     }
                 }
                 Text("Item (${d.items.size})", fontWeight = FontWeight.Bold)
-                d.items.forEach { it ->
+                d.items.forEach {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("${it.quantity}x ${it.name}", modifier = Modifier.weight(1f))
                         Text(formatCurrency(it.totalMinor))
@@ -150,17 +163,21 @@ fun DetailScreen(
         }
     }
     if (confirmDelete) {
-        AlertDialog(onDismissRequest = { confirmDelete = false }, confirmButton = {
-            Button(onClick = {
-                confirmDelete = false
-                scope.launch {
-                    val paths = (data?.images?.map { it.imagePath } ?: emptyList()) + listOfNotNull(data?.receipt?.imagePath)
-                    repository.deleteReceipt(receiptId)
-                    paths.forEach { runCatching { File(it).delete() } }
-                    onBack()
-                }
-            }) { Text("Hapus") }
-        }, dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Batal") } },
-        text = { Text("Hapus struk ini beserta gambarnya?") })
+        AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            confirmButton = {
+                Button(onClick = {
+                    confirmDelete = false
+                    scope.launch {
+                        val paths = (data?.images?.map { it.imagePath } ?: emptyList()) + listOfNotNull(data?.receipt?.imagePath)
+                        repository.deleteReceipt(receiptId)
+                        paths.forEach { runCatching { File(it).delete() } }
+                        onBack()
+                    }
+                }) { Text("Hapus") }
+            },
+            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Batal") } },
+            text = { Text("Hapus struk ini beserta gambarnya?") },
+        )
     }
 }

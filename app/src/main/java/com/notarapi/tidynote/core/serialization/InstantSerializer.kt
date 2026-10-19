@@ -20,11 +20,13 @@ import java.time.ZoneId
  *  - tanggal-jam lokal tanpa zona ("2024-01-15T10:30:00") → dikonversi pakai zona sistem.
  */
 object InstantSerializer : KSerializer<Instant> {
-
     override val descriptor: SerialDescriptor =
         PrimitiveSerialDescriptor("java.time.Instant", PrimitiveKind.STRING)
 
-    override fun serialize(encoder: Encoder, value: Instant) {
+    override fun serialize(
+        encoder: Encoder,
+        value: Instant,
+    ) {
         encoder.encodeString(value.toString())
     }
 

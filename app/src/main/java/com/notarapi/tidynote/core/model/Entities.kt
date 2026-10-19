@@ -4,7 +4,6 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
-import java.time.Instant
 
 @Entity(
     tableName = "receipts",
@@ -12,8 +11,8 @@ import java.time.Instant
         Index("merchantId"),
         Index("categoryId"),
         Index("transactionDate"),
-        Index("reviewStatus")
-    ]
+        Index("reviewStatus"),
+    ],
 )
 data class ReceiptEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -33,7 +32,7 @@ data class ReceiptEntity(
     val invoiceNumber: String? = null,
     val imagePath: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
-    val updatedAt: Long = System.currentTimeMillis()
+    val updatedAt: Long = System.currentTimeMillis(),
 ) {
     val isPending: Boolean get() = reviewStatus == "PENDING"
     val isReviewed: Boolean get() = reviewStatus == "REVIEWED"
@@ -46,10 +45,10 @@ data class ReceiptEntity(
             entity = ReceiptEntity::class,
             parentColumns = ["id"],
             childColumns = ["receiptId"],
-            onDelete = ForeignKey.CASCADE
-        )
+            onDelete = ForeignKey.CASCADE,
+        ),
     ],
-    indices = [Index("receiptId")]
+    indices = [Index("receiptId")],
 )
 data class ReceiptItemEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -58,12 +57,12 @@ data class ReceiptItemEntity(
     val quantity: Int = 1,
     val unitPriceMinor: Long = 0,
     val totalMinor: Long = 0,
-    val confidence: Float = 0f
+    val confidence: Float = 0f,
 )
 
 @Entity(
     tableName = "merchants",
-    indices = [Index(value = ["name"], unique = true)]
+    indices = [Index(value = ["name"], unique = true)],
 )
 data class MerchantEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -71,18 +70,18 @@ data class MerchantEntity(
     val address: String? = null,
     val phone: String? = null,
     val taxId: String? = null,
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
 )
 
 @Entity(
     tableName = "categories",
-    indices = [Index(value = ["name"], unique = true)]
+    indices = [Index(value = ["name"], unique = true)],
 )
 data class CategoryEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
     val colorHex: String = "#6200EE",
-    val icon: String = "category"
+    val icon: String = "category",
 )
 
 @Entity(
@@ -92,10 +91,10 @@ data class CategoryEntity(
             entity = ReceiptEntity::class,
             parentColumns = ["id"],
             childColumns = ["receiptId"],
-            onDelete = ForeignKey.CASCADE
-        )
+            onDelete = ForeignKey.CASCADE,
+        ),
     ],
-    indices = [Index("receiptId")]
+    indices = [Index("receiptId")],
 )
 data class ScanImageEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -105,7 +104,7 @@ data class ScanImageEntity(
     val width: Int = 0,
     val height: Int = 0,
     val rotationDegrees: Int = 0,
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
 )
 
 @Entity(
@@ -115,10 +114,10 @@ data class ScanImageEntity(
             entity = ReceiptEntity::class,
             parentColumns = ["id"],
             childColumns = ["receiptId"],
-            onDelete = ForeignKey.CASCADE
-        )
+            onDelete = ForeignKey.CASCADE,
+        ),
     ],
-    indices = [Index("receiptId")]
+    indices = [Index("receiptId")],
 )
 data class ExtractionAttemptEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -127,12 +126,12 @@ data class ExtractionAttemptEntity(
     val status: String = "SUCCESS",
     val confidence: Float = 0f,
     val error: String? = null,
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
 )
 
 data class ReceiptWithItems(
     val receipt: ReceiptEntity,
     val items: List<ReceiptItemEntity>,
     val merchant: MerchantEntity?,
-    val images: List<ScanImageEntity>
+    val images: List<ScanImageEntity>,
 )

@@ -14,7 +14,6 @@ import java.io.File
  * ini supaya tidak bisa melenceng lagi.
  */
 object ReceiptImages {
-
     private const val DIR_NAME = "receipts"
 
     /** Direktori gambar struk. Belum tentu ada di disk. */

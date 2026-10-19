@@ -19,33 +19,45 @@ import java.io.InputStream
 class OcrHelper {
     private val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
 
-    suspend fun recognizeText(bitmap: Bitmap, rotation: Int = 0): String = withContext(Dispatchers.IO) {
-        val processed = preprocessForOcr(bitmap)
-        val image = InputImage.fromBitmap(processed, rotation)
-        val result = recognizer.process(image).await()
-        result.text
-    }
+    suspend fun recognizeText(
+        bitmap: Bitmap,
+        rotation: Int = 0,
+    ): String =
+        withContext(Dispatchers.IO) {
+            val processed = preprocessForOcr(bitmap)
+            val image = InputImage.fromBitmap(processed, rotation)
+            val result = recognizer.process(image).await()
+            result.text
+        }
 
-    suspend fun recognizeTextFromUri(contentResolver: ContentResolver, uri: android.net.Uri): String = withContext(Dispatchers.IO) {
-        val rotation = getExifOrientation(contentResolver, uri)
-        val inputStream = contentResolver.openInputStream(uri) ?: return@withContext ""
-        val bitmap = android.graphics.BitmapFactory.decodeStream(inputStream) ?: return@withContext ""
-        inputStream.close()
-        val processed = preprocessForOcr(bitmap)
-        val image = InputImage.fromBitmap(processed, rotation)
-        val result = recognizer.process(image).await()
-        result.text
-    }
+    suspend fun recognizeTextFromUri(
+        contentResolver: ContentResolver,
+        uri: android.net.Uri,
+    ): String =
+        withContext(Dispatchers.IO) {
+            val rotation = getExifOrientation(contentResolver, uri)
+            val inputStream = contentResolver.openInputStream(uri) ?: return@withContext ""
+            val bitmap = android.graphics.BitmapFactory.decodeStream(inputStream) ?: return@withContext ""
+            inputStream.close()
+            val processed = preprocessForOcr(bitmap)
+            val image = InputImage.fromBitmap(processed, rotation)
+            val result = recognizer.process(image).await()
+            result.text
+        }
 
-    suspend fun recognizeTextFromPath(imagePath: String): String = withContext(Dispatchers.IO) {
-        val bitmap = android.graphics.BitmapFactory.decodeFile(imagePath) ?: return@withContext ""
-        val processed = preprocessForOcr(bitmap)
-        val image = InputImage.fromBitmap(processed, 0)
-        val result = recognizer.process(image).await()
-        result.text
-    }
+    suspend fun recognizeTextFromPath(imagePath: String): String =
+        withContext(Dispatchers.IO) {
+            val bitmap = android.graphics.BitmapFactory.decodeFile(imagePath) ?: return@withContext ""
+            val processed = preprocessForOcr(bitmap)
+            val image = InputImage.fromBitmap(processed, 0)
+            val result = recognizer.process(image).await()
+            result.text
+        }
 
-    private fun getExifOrientation(contentResolver: ContentResolver, uri: android.net.Uri): Int {
+    private fun getExifOrientation(
+        contentResolver: ContentResolver,
+        uri: android.net.Uri,
+    ): Int {
         var inputStream: InputStream? = null
         return try {
             inputStream = contentResolver.openInputStream(uri) ?: return 0
@@ -57,7 +69,7 @@ class OcrHelper {
                 ExifInterface.ORIENTATION_ROTATE_270 -> 270
                 else -> 0
             }
-        } catch (e: IOException) {
+        } catch (_: IOException) {
             0
         } finally {
             inputStream?.close()
@@ -69,9 +81,12 @@ class OcrHelper {
         val h = src.height
 
         val targetMin = 1200f
-        val scale = if (w < targetMin || h < targetMin) {
-            maxOf(targetMin / w, targetMin / h).coerceAtMost(2.5f)
-        } else 1.0f
+        val scale =
+            if (w < targetMin || h < targetMin) {
+                maxOf(targetMin / w, targetMin / h).coerceAtMost(2.5f)
+            } else {
+                1.0f
+            }
 
         val scaledW = (w * scale).toInt()
         val scaledH = (h * scale).toInt()
@@ -80,20 +95,40 @@ class OcrHelper {
         val result = Bitmap.createBitmap(scaledW, scaledH, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(result)
 
-        val cm = ColorMatrix().apply {
-            setSaturation(0f)
-            val contrast = 1.4f
-            val brightness = -30f
-            set(floatArrayOf(
-                contrast, 0f, 0f, 0f, brightness,
-                0f, contrast, 0f, 0f, brightness,
-                0f, 0f, contrast, 0f, brightness,
-                0f, 0f, 0f, 1f, 0f
-            ))
-        }
-        val paint = Paint().apply {
-            colorFilter = ColorMatrixColorFilter(cm)
-        }
+        val cm =
+            ColorMatrix().apply {
+                setSaturation(0f)
+                val contrast = 1.4f
+                val brightness = -30f
+                set(
+                    floatArrayOf(
+                        contrast,
+                        0f,
+                        0f,
+                        0f,
+                        brightness,
+                        0f,
+                        contrast,
+                        0f,
+                        0f,
+                        brightness,
+                        0f,
+                        0f,
+                        contrast,
+                        0f,
+                        brightness,
+                        0f,
+                        0f,
+                        0f,
+                        1f,
+                        0f,
+                    ),
+                )
+            }
+        val paint =
+            Paint().apply {
+                colorFilter = ColorMatrixColorFilter(cm)
+            }
         canvas.drawBitmap(scaled, 0f, 0f, paint)
         return result
     }

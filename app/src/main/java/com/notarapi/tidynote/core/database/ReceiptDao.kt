@@ -6,12 +6,11 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
-import kotlinx.coroutines.flow.Flow
 import com.notarapi.tidynote.core.model.*
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ReceiptDao {
-
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertReceipt(receipt: ReceiptEntity): Long
 
@@ -28,7 +27,10 @@ interface ReceiptDao {
     suspend fun getReceiptById(id: Long): ReceiptEntity?
 
     @Query("SELECT * FROM receipts ORDER BY transactionDate DESC LIMIT :limit OFFSET :offset")
-    fun getReceiptsPaged(limit: Int, offset: Int): Flow<List<ReceiptEntity>>
+    fun getReceiptsPaged(
+        limit: Int,
+        offset: Int,
+    ): Flow<List<ReceiptEntity>>
 
     @Query("SELECT * FROM receipts WHERE reviewStatus = :status ORDER BY transactionDate DESC")
     fun getReceiptsByStatus(status: String): Flow<List<ReceiptEntity>>
@@ -48,7 +50,8 @@ interface ReceiptDao {
      * CAST(totalMinor AS TEXT): user terbiasa mengetik "25000" untuk menemukan
      * struk. Tanpa cast ini perilaku tersebut hilang.
      */
-    @Query("""
+    @Query(
+        """
         SELECT r.* FROM receipts r
         LEFT JOIN merchants m ON r.merchantId = m.id
         WHERE (:search IS NULL OR :search = ''
@@ -60,7 +63,8 @@ interface ReceiptDao {
           AND (:categoryId IS NULL OR r.categoryId = :categoryId)
           AND (:reviewStatus IS NULL OR r.reviewStatus = :reviewStatus)
         ORDER BY r.transactionDate DESC
-    """)
+    """,
+    )
     fun filterReceipts(
         search: String?,
         startDate: Long?,
@@ -70,18 +74,25 @@ interface ReceiptDao {
     ): Flow<List<ReceiptEntity>>
 
     @Transaction
-    @Query("""
+    @Query(
+        """
         SELECT r.* FROM receipts r
         ORDER BY r.transactionDate DESC
         LIMIT :limit OFFSET :offset
-    """)
-    fun getReceiptsWithMerchant(limit: Int, offset: Int): Flow<List<ReceiptRow>>
+    """,
+    )
+    fun getReceiptsWithMerchant(
+        limit: Int,
+        offset: Int,
+    ): Flow<List<ReceiptRow>>
 
     @Transaction
-    @Query("""
+    @Query(
+        """
         SELECT r.* FROM receipts r
         WHERE r.id = :id
-    """)
+    """,
+    )
     suspend fun getReceiptWithMerchantById(id: Long): ReceiptRow?
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
@@ -150,24 +161,35 @@ interface ReceiptDao {
     @Query("SELECT COALESCE(SUM(totalMinor), 0) FROM receipts WHERE transactionDate >= :startOfMonth")
     suspend fun getTotalThisMonth(startOfMonth: Long): Long
 
-    @Query("""
+    @Query(
+        """
         SELECT COALESCE(SUM(totalMinor), 0) FROM receipts
         WHERE (:start IS NULL OR transactionDate >= :start)
           AND (:end IS NULL OR transactionDate <= :end)
-    """)
-    suspend fun getTotalInRange(start: Long?, end: Long?): Long
+    """,
+    )
+    suspend fun getTotalInRange(
+        start: Long?,
+        end: Long?,
+    ): Long
 
-    @Query("""
+    @Query(
+        """
         SELECT COUNT(*) FROM receipts
         WHERE (:start IS NULL OR transactionDate >= :start)
           AND (:end IS NULL OR transactionDate <= :end)
-    """)
-    suspend fun getCountInRange(start: Long?, end: Long?): Int
+    """,
+    )
+    suspend fun getCountInRange(
+        start: Long?,
+        end: Long?,
+    ): Int
 
     // LEFT JOIN supaya struk tanpa kategori tetap muncul (categoryId NULL).
     // Nama diambil di sini, bukan di UI, karena categoryId -> name itu 1:1 dan
     // Dashboard sebelumnya menampilkan "Kategori 1" — id mentah, bukan nama.
-    @Query("""
+    @Query(
+        """
         SELECT r.categoryId as categoryId,
                c.name as categoryName,
                COALESCE(SUM(r.totalMinor), 0) as total
@@ -177,10 +199,15 @@ interface ReceiptDao {
           AND (:end IS NULL OR r.transactionDate <= :end)
         GROUP BY r.categoryId
         ORDER BY total DESC
-    """)
-    suspend fun getTotalsByCategory(start: Long?, end: Long?): List<CategoryTotal>
+    """,
+    )
+    suspend fun getTotalsByCategory(
+        start: Long?,
+        end: Long?,
+    ): List<CategoryTotal>
 
-    @Query("""
+    @Query(
+        """
         SELECT m.name as merchantName, COALESCE(SUM(r.totalMinor), 0) as total, COUNT(*) as count
         FROM receipts r LEFT JOIN merchants m ON r.merchantId = m.id
         WHERE (:start IS NULL OR r.transactionDate >= :start)
@@ -188,8 +215,13 @@ interface ReceiptDao {
         GROUP BY m.name
         ORDER BY total DESC
         LIMIT :limit
-    """)
-    suspend fun getTopMerchants(start: Long?, end: Long?, limit: Int = 5): List<MerchantTotal>
+    """,
+    )
+    suspend fun getTopMerchants(
+        start: Long?,
+        end: Long?,
+        limit: Int = 5,
+    ): List<MerchantTotal>
 
     @Query("DELETE FROM receipts")
     suspend fun deleteAllReceipts()
@@ -205,25 +237,25 @@ data class CategoryTotal(
     val categoryId: Long?,
     /** Null kalau struk belum diberi kategori. */
     val categoryName: String? = null,
-    val total: Long
+    val total: Long,
 )
 
 data class MerchantTotal(
     val merchantName: String?,
     val total: Long,
-    val count: Int
+    val count: Int,
 )
 
 data class ReceiptRow(
     @androidx.room.Embedded val receipt: ReceiptEntity,
     @androidx.room.Relation(
         parentColumn = "merchantId",
-        entityColumn = "id"
+        entityColumn = "id",
     )
     val merchant: MerchantEntity? = null,
     @androidx.room.Relation(
         parentColumn = "id",
-        entityColumn = "receiptId"
+        entityColumn = "receiptId",
     )
-    val images: List<ScanImageEntity> = emptyList()
+    val images: List<ScanImageEntity> = emptyList(),
 )
