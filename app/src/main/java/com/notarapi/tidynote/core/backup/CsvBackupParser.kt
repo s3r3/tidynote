@@ -8,7 +8,11 @@ import java.util.Locale
 /**
  * Parser CSV ekspor TidyNote -> [ReceiptDraft] untuk restore (tulis balik ke DB).
  * Kolom (lihat CsvExporter):
- * Tanggal,Merchant,NPWP,Kategori,Subtotal,Diskon,PPN,Total,Status,Teks OCR
+ * Tanggal,Merchant,NPWP,Kategori,Subtotal,Diskon,PPN,Total,Status,Teks OCR,No Invoice
+ *
+ * Kolom NPWP dan No Invoice ditambahkan belakangan, jadi baris lama yang hanya
+ * punya 10 kolom tetap harus bisa dibaca — karena itu semua akses kolom opsional
+ * memakai getOrNull.
  */
 object CsvBackupParser {
 
@@ -31,6 +35,7 @@ object CsvBackupParser {
         val status = cols[8].trim().takeIf { it.isNotBlank() } ?: "PENDING"
         val draft = ReceiptDraft(
             merchantName = cols[1].trim().ifBlank { null },
+            npwp = cols.getOrNull(2)?.trim()?.ifBlank { null },
             transactionDate = instant,
             currency = "IDR",
             items = emptyList(),
@@ -39,6 +44,7 @@ object CsvBackupParser {
             taxMinor = cols[6].trim().toLongOrNull(),
             totalMinor = cols[7].trim().toLongOrNull(),
             rawOcrText = cols.getOrNull(9).orEmpty(),
+            invoiceNumber = cols.getOrNull(10)?.trim()?.ifBlank { null },
             source = ExtractionSource.MANUAL_INPUT,
         )
         return draft to status

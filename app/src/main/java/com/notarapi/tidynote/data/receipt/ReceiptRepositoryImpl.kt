@@ -27,16 +27,23 @@ class ReceiptRepositoryImpl(
      * bersamaan (mis. Save ditekan dua kali): dua-duanya melihat null, dua-duanya
      * menyisipkan, satu kalah dan dapat -1. Jadi kalau hasil insert <= 0, baca ulang.
      */
-    private suspend fun resolveMerchantId(name: String?): Long? {
+    private suspend fun resolveMerchantId(name: String?, npwp: String? = null): Long? {
         if (name.isNullOrBlank()) return null
-        dao.getMerchantByName(name)?.let { return it.id }
-        val inserted = dao.insertMerchant(MerchantEntity(name = name))
+        dao.getMerchantByName(name)?.let { existing ->
+            // NPWP ikut disimpan kalau user mengisinya dan merchant belum punya.
+            // Kolom taxId sudah ada sejak awal tapi tidak pernah ditulis siapa pun.
+            if (!npwp.isNullOrBlank() && existing.taxId.isNullOrBlank()) {
+                dao.updateMerchant(existing.copy(taxId = npwp))
+            }
+            return existing.id
+        }
+        val inserted = dao.insertMerchant(MerchantEntity(name = name, taxId = npwp?.takeIf { it.isNotBlank() }))
         if (inserted > 0) return inserted
         return dao.getMerchantByName(name)?.id
     }
 
     override suspend fun saveDraft(draft: ReceiptDraft): Long = withContext(Dispatchers.IO) {
-        val merchantId = resolveMerchantId(draft.merchantName)
+        val merchantId = resolveMerchantId(draft.merchantName, draft.npwp)
 
         val receipt = ReceiptEntity(
             merchantId = merchantId,
@@ -51,6 +58,7 @@ class ReceiptRepositoryImpl(
             source = draft.source.name,
             confidence = draft.confidence.average,
             reviewStatus = if (draft.needsReview) "PENDING" else "REVIEWED",
+            invoiceNumber = draft.invoiceNumber,
             imagePath = draft.imagePath
         )
 
@@ -87,6 +95,39 @@ class ReceiptRepositoryImpl(
 
     override suspend fun updateReceipt(entity: ReceiptEntity) = withContext(Dispatchers.IO) {
         dao.updateReceipt(entity.copy(updatedAt = System.currentTimeMillis()))
+    }
+
+    override suspend fun getDraftForEdit(id: Long): ReceiptDraft? = withContext(Dispatchers.IO) {
+        val full = getReceiptWithItems(id) ?: return@withContext null
+        val r = full.receipt
+        ReceiptDraft(
+            merchantName = full.merchant?.name,
+            npwp = full.merchant?.taxId,
+            invoiceNumber = r.invoiceNumber,
+            transactionDate = r.transactionDate?.let { java.time.Instant.ofEpochMilli(it) },
+            currency = r.currency,
+            items = full.items.map { item ->
+                ReceiptItemDraft(
+                    name = item.name,
+                    quantity = item.quantity,
+                    unitPriceMinor = item.unitPriceMinor,
+                    totalMinor = item.totalMinor,
+                    confidence = item.confidence,
+                )
+            },
+            subtotalMinor = r.subtotalMinor,
+            discountMinor = r.discountMinor,
+            taxMinor = r.taxMinor,
+            totalMinor = r.totalMinor,
+            categoryId = r.categoryId,
+            rawOcrText = r.rawOcrText,
+            // Sumber asli dipertahankan supaya jejak asal ekstraksi tidak hilang
+            // hanya karena user menyunting nominalnya.
+            source = runCatching { ExtractionSource.valueOf(r.source) }
+                .getOrDefault(ExtractionSource.MANUAL_INPUT),
+            confidence = FieldConfidence(total = r.confidence),
+            imagePath = r.imagePath,
+        )
     }
 
     override suspend fun deleteReceipt(id: Long) = withContext(Dispatchers.IO) {
@@ -146,6 +187,47 @@ class ReceiptRepositoryImpl(
         }
     }
 
+    override suspend fun saveExisting(draft: ReceiptDraft, receiptId: Long): Long = withContext(Dispatchers.IO) {
+        val existing = dao.getReceiptById(receiptId) ?: return@withContext 0L
+        val merchantId = resolveMerchantId(draft.merchantName, draft.npwp)
+
+        // createdAt dipertahankan: barisnya memang sudah ada, yang berubah isinya.
+        dao.updateReceipt(
+            existing.copy(
+                merchantId = merchantId,
+                transactionDate = draft.transactionDate?.toEpochMilli() ?: existing.transactionDate,
+                currency = draft.currency,
+                subtotalMinor = draft.subtotalMinor,
+                discountMinor = draft.discountMinor,
+                taxMinor = draft.taxMinor,
+                totalMinor = draft.totalMinor?.takeIf { it > 0 } ?: draft.copyWithDefaults().totalMinor,
+                categoryId = draft.categoryId,
+                rawOcrText = draft.rawOcrText,
+                source = draft.source.name,
+                confidence = draft.confidence.average,
+                reviewStatus = if (draft.needsReview) "PENDING" else "REVIEWED",
+                invoiceNumber = draft.invoiceNumber,
+                updatedAt = System.currentTimeMillis(),
+            ),
+        )
+
+        // Item diganti seluruhnya, bukan digabung: user mungkin menghapus baris
+        // di layar Review, dan hasilnya harus persis seperti yang terlihat.
+        dao.deleteItemsByReceiptId(receiptId)
+        val items = draft.items.mapIndexed { index, item ->
+            ReceiptItemEntity(
+                receiptId = receiptId,
+                name = item.name,
+                quantity = item.quantity,
+                unitPriceMinor = item.unitPriceMinor,
+                totalMinor = item.lineTotal,
+                confidence = item.confidence,
+            )
+        }
+        if (items.isNotEmpty()) dao.insertReceiptItems(items)
+        receiptId
+    }
+
     override suspend fun duplicateReceipt(sourceId: Long): Long = withContext(Dispatchers.IO) {
         val source = dao.getReceiptById(sourceId) ?: return@withContext 0L
         val now = System.currentTimeMillis()
@@ -199,7 +281,7 @@ class ReceiptRepositoryImpl(
     override suspend fun restoreFromBackup(rows: List<Pair<ReceiptDraft, String>>): Int = withContext(Dispatchers.IO) {
         var count = 0
         for ((draft, status) in rows) {
-            val merchantId = resolveMerchantId(draft.merchantName)
+            val merchantId = resolveMerchantId(draft.merchantName, draft.npwp)
             val entity = ReceiptEntity(
                 merchantId = merchantId,
                 transactionDate = draft.transactionDate?.toEpochMilli(),
@@ -213,6 +295,7 @@ class ReceiptRepositoryImpl(
                 source = draft.source.name,
                 confidence = draft.confidence.average,
                 reviewStatus = if (status == "REVIEWED") "REVIEWED" else "PENDING",
+                invoiceNumber = draft.invoiceNumber,
                 imagePath = draft.imagePath,
             )
             val id = dao.insertReceipt(entity)

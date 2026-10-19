@@ -52,6 +52,10 @@ data class ReceiptItemDraft(
 @Parcelize
 data class ReceiptDraft(
     val merchantName: String? = null,
+    /** NPWP merchant. Disimpan ke MerchantEntity.taxId, bukan ke tabel receipts. */
+    val npwp: String? = null,
+    /** Nomor invoice/faktur dari struk. Kolom sendiri di receipts sejak skema v3. */
+    val invoiceNumber: String? = null,
     @Contextual
     val transactionDate: Instant? = null,
     val currency: String = "IDR",

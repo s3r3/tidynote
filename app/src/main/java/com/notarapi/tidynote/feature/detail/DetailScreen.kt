@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -56,6 +57,8 @@ fun DetailScreen(
     onShareImage: (String) -> Unit = {},
     /** Duplikat struk ini sebagai baris baru, lalu buka hasilnya. */
     onDuplicate: (Long) -> Unit = {},
+    /** Buka struk ini di layar Review untuk disunting. */
+    onEdit: (Long) -> Unit = {},
 ) {
     val repository: ReceiptRepository = koinInject()
     val context = LocalContext.current
@@ -67,6 +70,11 @@ fun DetailScreen(
         TopAppBar(title = { Text("Detail struk") }, navigationIcon = {
             IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Kembali") }
         }, actions = {
+            // Salah ketik nominal dulu berarti harus hapus lalu scan ulang —
+            // tidak ada jalan untuk memperbaiki struk yang sudah tersimpan.
+            IconButton(onClick = { onEdit(receiptId) }) {
+                Icon(Icons.Default.Edit, contentDescription = "Sunting struk")
+            }
             // updateReviewStatus sebelumnya tidak punya pemanggil sama sekali:
             // begitu struk disimpan PENDING, tidak ada jalan keluar. Antrian
             // "Periksa N struk" di Home karena itu tidak pernah selesai.
@@ -112,6 +120,15 @@ fun DetailScreen(
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(d.merchant?.name ?: "Tidak dikenal", fontWeight = FontWeight.Bold)
                         Text(formatDate(d.receipt.transactionDate))
+                        // NPWP & nomor invoice sekarang benar-benar tersimpan,
+                        // jadi keduanya perlu terlihat di sini. Dulu dua field ini
+                        // bisa diketik di layar Review lalu hilang saat disimpan.
+                        d.merchant?.taxId?.takeIf { it.isNotBlank() }?.let { npwp ->
+                            Text("NPWP: $npwp")
+                        }
+                        d.receipt.invoiceNumber?.takeIf { it.isNotBlank() }?.let { inv ->
+                            Text("No. invoice: $inv")
+                        }
                         Text("Status: ${d.receipt.reviewStatus} - Sumber: ${d.receipt.source}")
                         Text("Total: ${formatCurrency(d.receipt.totalMinor ?: 0)}", fontWeight = FontWeight.Bold)
                         Text("Subtotal ${formatCurrency(d.receipt.subtotalMinor ?: 0)} - PPN ${formatCurrency(d.receipt.taxMinor ?: 0)} - Diskon ${formatCurrency(d.receipt.discountMinor ?: 0)}")

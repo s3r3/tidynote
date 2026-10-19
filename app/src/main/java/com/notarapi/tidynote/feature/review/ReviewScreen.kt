@@ -215,7 +215,10 @@ fun ReviewScreen(
 @Composable
 fun MerchantSection(draft: ReceiptDraft, onEdit: (ReceiptDraft) -> Unit) {
     var name by remember(draft.merchantName) { mutableStateOf(draft.merchantName.orEmpty()) }
-    var npwp by remember { mutableStateOf("") }
+    // Dulu `npwp` cuma state lokal tanpa onEdit dan tanpa kolom di database:
+    // user bisa mengetik NPWP, lalu nilainya hilang saat Save. Sekarang
+    // tersambung ke draft dan benar-benar ikut tersimpan.
+    var npwp by remember(draft.npwp) { mutableStateOf(draft.npwp.orEmpty()) }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -242,7 +245,10 @@ fun MerchantSection(draft: ReceiptDraft, onEdit: (ReceiptDraft) -> Unit) {
             Spacer(modifier = Modifier.size(8.dp))
             TextField(
                 value = npwp,
-                onValueChange = { npwp = it },
+                onValueChange = {
+                    npwp = it
+                    onEdit(draft.copy(npwp = it.ifBlank { null }))
+                },
                 label = { Text(stringResource(R.string.npwp)) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
@@ -405,7 +411,9 @@ fun TotalsSection(draft: ReceiptDraft, onEdit: (ReceiptDraft) -> Unit) {
     var tax by remember(draft.taxMinor) { mutableStateOf(draft.taxMinor ?: 0L) }
     var total by remember(draft.totalMinor) { mutableStateOf(draft.totalMinor ?: 0L) }
     var discount by remember(draft.discountMinor) { mutableStateOf(draft.discountMinor ?: 0L) }
-    var invoice by remember { mutableStateOf("") }
+    // Dulu state lokal tanpa onEdit: nomor invoice bisa diketik lalu dibuang
+    // diam-diam saat Save. Sejak skema v3 ada kolomnya di receipts.
+    var invoice by remember(draft.invoiceNumber) { mutableStateOf(draft.invoiceNumber.orEmpty()) }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -473,7 +481,10 @@ fun TotalsSection(draft: ReceiptDraft, onEdit: (ReceiptDraft) -> Unit) {
                 Spacer(modifier = Modifier.weight(1f))
                 TextField(
                     value = invoice,
-                    onValueChange = { invoice = it },
+                    onValueChange = {
+                        invoice = it
+                        onEdit(draft.copy(invoiceNumber = it.ifBlank { null }))
+                    },
                     modifier = Modifier.width(160.dp),
                     singleLine = true
                 )

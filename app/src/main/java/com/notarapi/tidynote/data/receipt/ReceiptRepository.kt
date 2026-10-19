@@ -44,6 +44,21 @@ interface ReceiptRepository {
      */
     suspend fun duplicateReceipt(sourceId: Long): Long
 
+    /**
+     * Simpan perubahan atas struk yang SUDAH ADA (mode edit dari DetailScreen).
+     *
+     * Berbeda dari [saveDraft] yang selalu menyisipkan baris baru. Item lama
+     * diganti seluruhnya supaya hasilnya persis seperti yang dilihat user di
+     * layar Review — termasuk kalau ada item yang dihapus.
+     */
+    suspend fun saveExisting(draft: ReceiptDraft, receiptId: Long): Long
+
+    /**
+     * Muat struk tersimpan sebagai [ReceiptDraft] supaya bisa dibuka di layar
+     * Review dalam mode edit. Mengembalikan null kalau struknya tidak ada.
+     */
+    suspend fun getDraftForEdit(id: Long): ReceiptDraft?
+
     /** Ekspor memakai filter yang sama dengan layar; default menjaga pemanggil lama tetap jalan. */
     suspend fun getReceiptsForExport(
         query: String? = null,

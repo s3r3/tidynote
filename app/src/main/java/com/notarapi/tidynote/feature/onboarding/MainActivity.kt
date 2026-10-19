@@ -3,9 +3,18 @@ package com.notarapi.tidynote.feature.onboarding
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -78,6 +87,44 @@ class MainActivity : ComponentActivity() {
                                 onNavigateToSettings = { navController.navigate("settings") },
                                 onNavigateToDashboard = { navController.navigate("dashboard") }
                             )
+                        }
+                        // Mode edit: buka struk yang SUDAH tersimpan di layar Review.
+                        // Sebelumnya struk tersimpan hanya bisa dilihat dan dihapus —
+                        // salah ketik nominal berarti harus hapus lalu scan ulang.
+                        composable("review/{id}") { backStackEntry ->
+                            val editId = backStackEntry.arguments?.getString("id")?.toLongOrNull() ?: 0L
+                            val repository: ReceiptRepository = org.koin.compose.koinInject()
+                            val scope = rememberCoroutineScope()
+                            var loaded by remember(editId) {
+                                mutableStateOf<com.notarapi.tidynote.core.model.ReceiptDraft?>(null)
+                            }
+                            var missing by remember(editId) { mutableStateOf(false) }
+                            LaunchedEffect(editId) {
+                                val d = repository.getDraftForEdit(editId)
+                                if (d == null) missing = true else loaded = d
+                            }
+                            val current = loaded
+                            if (current == null) {
+                                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                    Text(if (missing) "Struk tidak ditemukan." else "Memuat...")
+                                }
+                            } else {
+                                ReviewScreen(
+                                    draft = current,
+                                    onSave = { edited ->
+                                        scope.launch {
+                                            repository.saveExisting(edited, editId)
+                                            navController.popBackStack()
+                                        }
+                                    },
+                                    onCancel = { navController.popBackStack() },
+                                    // AI tidak ditawarkan di mode edit: teks OCR
+                                    // sudah tersimpan, dan menimpanya bisa menghapus
+                                    // koreksi manual yang justru jadi alasan user
+                                    // membuka layar ini.
+                                    onFixWithAi = null,
+                                )
+                            }
                         }
                         composable("review") {
                             val draftJson = DraftHolder.currentDraft ?: ""
@@ -205,6 +252,7 @@ class MainActivity : ComponentActivity() {
                                         }
                                     }
                                 },
+                                onEdit = { editTargetId -> navController.navigate("review/$editTargetId") },
                             )
                         }
                         composable("dashboard") {

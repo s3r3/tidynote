@@ -107,6 +107,9 @@ interface ReceiptDao {
     @Query("SELECT * FROM merchants WHERE id = :id")
     suspend fun getMerchantById(id: Long): MerchantEntity?
 
+    @Update
+    suspend fun updateMerchant(merchant: MerchantEntity)
+
     @Query("SELECT * FROM merchants WHERE name = :name")
     suspend fun getMerchantByName(name: String): MerchantEntity?
 

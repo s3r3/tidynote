@@ -46,26 +46,29 @@ class CsvExporter {
 
     internal fun buildCsv(receipts: List<ReceiptRow>): String {
         val headers = listOf(
-            "Tanggal", "Merchant", "NPWP", "Kategori", "Subtotal", "Diskon", "PPN", "Total", "Status", "Teks OCR"
+            "Tanggal", "Merchant", "NPWP", "Kategori", "Subtotal", "Diskon", "PPN", "Total", "Status", "Teks OCR", "No Invoice"
         )
-        
+
         val rows = receipts.map { rwm ->
             val r = rwm.receipt
             val m = rwm.merchant
             listOf(
                 escapeCsv(formatDate(r.transactionDate)),
                 escapeCsv(m?.name ?: ""),
-                "", // NPWP not in entity yet
+                // taxId sudah lama ada di skema tapi sebelumnya selalu ditulis
+                // kosong di sini, sehingga NPWP hilang dari backup.
+                escapeCsv(m?.taxId ?: ""),
                 escapeCsv(r.categoryId?.toString() ?: ""),
                 (r.subtotalMinor ?: 0).toString(),
                 (r.discountMinor ?: 0).toString(),
                 (r.taxMinor ?: 0).toString(),
                 (r.totalMinor ?: 0).toString(),
                 r.reviewStatus,
-                escapeCsv(r.rawOcrText.replace("\n", " "))
+                escapeCsv(r.rawOcrText.replace("\n", " ")),
+                escapeCsv(r.invoiceNumber ?: ""),
             ).joinToString(",")
         }
-        
+
         return (headers.joinToString(",") + "\n" + rows.joinToString("\n"))
     }
 

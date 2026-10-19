@@ -29,6 +29,8 @@ data class ReceiptEntity(
     val source: String = "LOCAL_PARSER",
     val confidence: Float = 0f,
     val reviewStatus: String = "PENDING",
+    /** Nomor invoice/faktur. Ditambahkan di skema v3 (MIGRATION_2_3). */
+    val invoiceNumber: String? = null,
     val imagePath: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()

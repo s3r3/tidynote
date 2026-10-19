@@ -25,6 +25,18 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
     override fun migrate(db: SupportSQLiteDatabase) = Unit
 }
 
+// v2 -> v3: kolom nomor invoice di tabel receipts.
+//
+// Sebelumnya field "Nomor invoice" di layar Review hanya state lokal: user bisa
+// mengetiknya, tapi hilang begitu Save ditekan. ALTER TABLE dipakai (bukan bikin
+// ulang tabel) karena kolomnya nullable dan tanpa default — cara termurah, dan
+// tidak menyentuh baris yang sudah ada.
+val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `receipts` ADD COLUMN `invoiceNumber` TEXT")
+    }
+}
+
 @Database(
     entities = [
         ReceiptEntity::class,
@@ -34,7 +46,7 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
         ScanImageEntity::class,
         ExtractionAttemptEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -52,7 +64,7 @@ abstract class AppDatabase : RoomDatabase() {
                     "tidynote-db"
                 )
                     // plan.md §14: migration diuji, tidak destruktif.
-                    .addMigrations(MIGRATION_1_2)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                     .setQueryExecutor(Dispatchers.IO.asExecutor())
                     .addCallback(object : Callback() {
                         override fun onCreate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
