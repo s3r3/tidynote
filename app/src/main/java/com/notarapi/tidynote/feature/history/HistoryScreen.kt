@@ -56,6 +56,9 @@ import com.notarapi.tidynote.data.receipt.ReceiptRepository
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
+/** Jeda sebelum kata kunci pencarian dijalankan ke database. */
+private const val SEARCH_DEBOUNCE_MS = 300L
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryScreen(
@@ -71,6 +74,13 @@ fun HistoryScreen(
     val scope = rememberCoroutineScope()
 
     var searchQuery by remember { mutableStateOf("") }
+    // Query yang benar-benar dipakai. Mengetik tidak langsung memicu LIKE '%x%'
+    // ke seluruh rawOcrText; ditahan dulu supaya tiap huruf tidak jadi satu query.
+    var debouncedQuery by remember { mutableStateOf("") }
+    androidx.compose.runtime.LaunchedEffect(searchQuery) {
+        kotlinx.coroutines.delay(SEARCH_DEBOUNCE_MS)
+        debouncedQuery = searchQuery
+    }
     var selectedStatus by remember(initialStatus) { mutableStateOf(initialStatus) }
     var selectedCategoryId by remember { mutableStateOf<Long?>(null) }
     var categoryExpanded by remember { mutableStateOf(false) }
@@ -89,9 +99,9 @@ fun HistoryScreen(
             }
         }
     val receiptsFlow =
-        remember(searchQuery, selectedStatus, startDate, selectedCategoryId) {
+        remember(debouncedQuery, selectedStatus, startDate, selectedCategoryId) {
             repository.filterReceipts(
-                search = searchQuery.ifBlank { null },
+                search = debouncedQuery.ifBlank { null },
                 startDate = startDate,
                 endDate = null,
                 categoryId = selectedCategoryId,

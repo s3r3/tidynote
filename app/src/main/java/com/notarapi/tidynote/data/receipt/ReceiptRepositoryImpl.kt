@@ -1,6 +1,8 @@
 package com.notarapi.tidynote.data.receipt
 
 import android.content.Context
+import androidx.room.withTransaction
+import com.notarapi.tidynote.core.database.AppDatabase
 import com.notarapi.tidynote.core.database.ReceiptDao
 import com.notarapi.tidynote.core.database.ReceiptRow
 import com.notarapi.tidynote.core.model.*
@@ -17,6 +19,7 @@ private const val TOP_MERCHANT_LIMIT = 5
 class ReceiptRepositoryImpl(
     private val dao: ReceiptDao,
     private val context: Context,
+    private val db: AppDatabase,
 ) : ReceiptRepository {
     /**
      * Ambil id merchant, buat kalau belum ada.
@@ -63,7 +66,7 @@ class ReceiptRepositoryImpl(
                     rawOcrText = draft.rawOcrText,
                     source = draft.source.name,
                     confidence = draft.confidence.average,
-                    reviewStatus = if (draft.needsReview) "PENDING" else "REVIEWED",
+                    reviewStatus = draft.reviewStatusForSave(),
                     invoiceNumber = draft.invoiceNumber,
                     imagePath = draft.imagePath,
                 )
@@ -216,69 +219,78 @@ class ReceiptRepositoryImpl(
         receiptId: Long,
     ): Long =
         withContext(Dispatchers.IO) {
-            val existing = dao.getReceiptById(receiptId) ?: return@withContext 0L
-            val merchantId = resolveMerchantId(draft.merchantName, draft.npwp)
+            // Satu transaksi: update header + ganti item. Tanpa ini, crash di antara
+            // deleteItemsByReceiptId dan insert membuat struk kehilangan seluruh item.
+            db.withTransaction {
+                val existing = dao.getReceiptById(receiptId) ?: return@withTransaction 0L
+                val merchantId = resolveMerchantId(draft.merchantName, draft.npwp)
 
-            // createdAt dipertahankan: barisnya memang sudah ada, yang berubah isinya.
-            dao.updateReceipt(
-                existing.copy(
-                    merchantId = merchantId,
-                    transactionDate = draft.transactionDate?.toEpochMilli() ?: existing.transactionDate,
-                    currency = draft.currency,
-                    subtotalMinor = draft.subtotalMinor,
-                    discountMinor = draft.discountMinor,
-                    taxMinor = draft.taxMinor,
-                    totalMinor = draft.totalMinor?.takeIf { it > 0 } ?: draft.copyWithDefaults().totalMinor,
-                    categoryId = draft.categoryId,
-                    rawOcrText = draft.rawOcrText,
-                    source = draft.source.name,
-                    confidence = draft.confidence.average,
-                    reviewStatus = if (draft.needsReview) "PENDING" else "REVIEWED",
-                    invoiceNumber = draft.invoiceNumber,
-                    updatedAt = System.currentTimeMillis(),
-                ),
-            )
+                // createdAt dipertahankan: barisnya memang sudah ada, yang berubah isinya.
+                dao.updateReceipt(
+                    existing.copy(
+                        merchantId = merchantId,
+                        transactionDate = draft.transactionDate?.toEpochMilli() ?: existing.transactionDate,
+                        currency = draft.currency,
+                        subtotalMinor = draft.subtotalMinor,
+                        discountMinor = draft.discountMinor,
+                        taxMinor = draft.taxMinor,
+                        totalMinor = draft.totalMinor?.takeIf { it > 0 } ?: draft.copyWithDefaults().totalMinor,
+                        categoryId = draft.categoryId,
+                        rawOcrText = draft.rawOcrText,
+                        source = draft.source.name,
+                        confidence = draft.confidence.average,
+                        // Menyimpan ulang tanpa mengubah angka tidak boleh menurunkan
+                        // status yang sudah REVIEWED. Sebelumnya status selalu dihitung
+                        // dari confidence hasil rekonstruksi getDraftForEdit (yang hanya
+                        // menyimpan rata-rata), jadi setiap edit membalik REVIEWED -> PENDING.
+                        reviewStatus = draft.reviewStatusForSave(existing.reviewStatus),
+                        invoiceNumber = draft.invoiceNumber,
+                        updatedAt = System.currentTimeMillis(),
+                    ),
+                )
 
-            // Item diganti seluruhnya, bukan digabung: user mungkin menghapus baris
-            // di layar Review, dan hasilnya harus persis seperti yang terlihat.
-            dao.deleteItemsByReceiptId(receiptId)
-            val items =
-                draft.items.mapIndexed { index, item ->
-                    ReceiptItemEntity(
-                        receiptId = receiptId,
-                        name = item.name,
-                        quantity = item.quantity,
-                        unitPriceMinor = item.unitPriceMinor,
-                        totalMinor = item.lineTotal,
-                        confidence = item.confidence,
-                    )
-                }
-            if (items.isNotEmpty()) dao.insertReceiptItems(items)
-            receiptId
+                // Item diganti seluruhnya, bukan digabung: user mungkin menghapus baris
+                // di layar Review, dan hasilnya harus persis seperti yang terlihat.
+                dao.deleteItemsByReceiptId(receiptId)
+                val items =
+                    draft.items.map { item ->
+                        ReceiptItemEntity(
+                            receiptId = receiptId,
+                            name = item.name,
+                            quantity = item.quantity,
+                            unitPriceMinor = item.unitPriceMinor,
+                            totalMinor = item.lineTotal,
+                            confidence = item.confidence,
+                        )
+                    }
+                if (items.isNotEmpty()) dao.insertReceiptItems(items)
+                receiptId
+            }
         }
 
     override suspend fun duplicateReceipt(sourceId: Long): Long =
         withContext(Dispatchers.IO) {
-            val source = dao.getReceiptById(sourceId) ?: return@withContext 0L
-            val now = System.currentTimeMillis()
+            // Satu transaksi: header + item duplikat harus lahir bersamaan.
+            // Versi lama tanpa transaksi bisa meninggalkan struk tanpa item.
+            db.withTransaction {
+                val source = dao.getReceiptById(sourceId) ?: return@withTransaction 0L
+                val now = System.currentTimeMillis()
 
-            // id = 0 supaya Room membuat primary key baru. createdAt/updatedAt
-            // di-set ke sekarang karena ini memang baris baru bagi pengguna.
-            // duplicateReceipt sengaja tidak memakai transaction di sini:
-            // insertReceipt sudah atomik, dan kegagalan menyisipkan item akan
-            // terlihat sebagai struk tanpa item, bukan data yang salah.
-            val newId =
-                dao.insertReceipt(
-                    source.copy(id = 0, createdAt = now, updatedAt = now),
-                )
-            if (newId > 0) {
-                val items =
-                    dao.getItemsByReceiptId(sourceId).first().map { item ->
-                        item.copy(id = 0, receiptId = newId)
-                    }
-                if (items.isNotEmpty()) dao.insertReceiptItems(items)
+                // id = 0 supaya Room membuat primary key baru. createdAt/updatedAt
+                // di-set ke sekarang karena ini memang baris baru bagi pengguna.
+                val newId =
+                    dao.insertReceipt(
+                        source.copy(id = 0, createdAt = now, updatedAt = now),
+                    )
+                if (newId > 0) {
+                    val items =
+                        dao.getItemsByReceiptId(sourceId).first().map { item ->
+                            item.copy(id = 0, receiptId = newId)
+                        }
+                    if (items.isNotEmpty()) dao.insertReceiptItems(items)
+                }
+                newId
             }
-            newId
         }
 
     override suspend fun getReceiptsForExport(

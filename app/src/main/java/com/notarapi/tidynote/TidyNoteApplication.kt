@@ -40,7 +40,8 @@ class TidyNoteApplication : Application() {
                 single<ReceiptDao> { AppDatabase.get(get()).receiptDao() }
                 // get() kedua = Context (Android). Diperlukan supaya deleteAll() bisa
                 // ikut menghapus file gambar struk, bukan cuma baris database.
-                single<ReceiptRepository> { ReceiptRepositoryImpl(get(), get()) }
+                // get() ketiga = AppDatabase, untuk transaksi multi-tabel.
+                single<ReceiptRepository> { ReceiptRepositoryImpl(get(), get(), get()) }
                 single {
                     com.notarapi.tidynote.core.prefs
                         .AppPreferences(get())

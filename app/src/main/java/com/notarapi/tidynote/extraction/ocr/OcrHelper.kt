@@ -2,6 +2,7 @@ package com.notarapi.tidynote.extraction.ocr
 
 import android.content.ContentResolver
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
@@ -36,23 +37,78 @@ class OcrHelper {
     ): String =
         withContext(Dispatchers.IO) {
             val rotation = getExifOrientation(contentResolver, uri)
-            val inputStream = contentResolver.openInputStream(uri) ?: return@withContext ""
-            val bitmap = android.graphics.BitmapFactory.decodeStream(inputStream) ?: return@withContext ""
-            inputStream.close()
-            val processed = preprocessForOcr(bitmap)
-            val image = InputImage.fromBitmap(processed, rotation)
-            val result = recognizer.process(image).await()
-            result.text
+            // Decode sampel, bukan full-res: foto 12MP = ~48 MB ARGB_8888 dan
+            // preprocessForOcr mengalokasikan bitmap kedua seukuran penuh.
+            val bitmap = decodeSampled(contentResolver, uri) ?: return@withContext ""
+            try {
+                val processed = preprocessForOcr(bitmap)
+                try {
+                    val image = InputImage.fromBitmap(processed, rotation)
+                    val result = recognizer.process(image).await()
+                    result.text
+                } finally {
+                    if (!processed.isRecycled) processed.recycle()
+                }
+            } finally {
+                if (!bitmap.isRecycled) bitmap.recycle()
+            }
         }
 
     suspend fun recognizeTextFromPath(imagePath: String): String =
         withContext(Dispatchers.IO) {
-            val bitmap = android.graphics.BitmapFactory.decodeFile(imagePath) ?: return@withContext ""
-            val processed = preprocessForOcr(bitmap)
-            val image = InputImage.fromBitmap(processed, 0)
-            val result = recognizer.process(image).await()
-            result.text
+            val bitmap = decodeSampled(imagePath) ?: return@withContext ""
+            try {
+                val processed = preprocessForOcr(bitmap)
+                try {
+                    val image = InputImage.fromBitmap(processed, 0)
+                    val result = recognizer.process(image).await()
+                    result.text
+                } finally {
+                    if (!processed.isRecycled) processed.recycle()
+                }
+            } finally {
+                if (!bitmap.isRecycled) bitmap.recycle()
+            }
         }
+
+    /** Sisi terpanjang bitmap hasil decode. Cukup untuk OCR, jauh lebih hemat heap. */
+    private val maxDecodeDim = 2048
+
+    private fun decodeSampled(
+        contentResolver: ContentResolver,
+        uri: android.net.Uri,
+    ): Bitmap? {
+        val bounds =
+            BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+        val opts =
+            BitmapFactory.Options().apply {
+                inSampleSize = sampleSize(maxOf(bounds.outWidth, bounds.outHeight), maxDecodeDim)
+            }
+        return contentResolver.openInputStream(uri)?.use {
+            BitmapFactory.decodeStream(it, null, opts)
+        }
+    }
+
+    private fun decodeSampled(imagePath: String): Bitmap? {
+        val bounds =
+            BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(imagePath, bounds)
+        val opts =
+            BitmapFactory.Options().apply {
+                inSampleSize = sampleSize(maxOf(bounds.outWidth, bounds.outHeight), maxDecodeDim)
+            }
+        return BitmapFactory.decodeFile(imagePath, opts)
+    }
+
+    private fun sampleSize(
+        largest: Int,
+        maxDim: Int,
+    ): Int {
+        var sample = 1
+        while (largest / sample > maxDim) sample *= 2
+        return sample
+    }
 
     private fun getExifOrientation(
         contentResolver: ContentResolver,
@@ -91,7 +147,6 @@ class OcrHelper {
         val scaledW = (w * scale).toInt()
         val scaledH = (h * scale).toInt()
         val scaled = if (scale > 1.05f) Bitmap.createScaledBitmap(src, scaledW, scaledH, true) else src
-
         val result = Bitmap.createBitmap(scaledW, scaledH, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(result)
 
@@ -130,6 +185,8 @@ class OcrHelper {
                 colorFilter = ColorMatrixColorFilter(cm)
             }
         canvas.drawBitmap(scaled, 0f, 0f, paint)
+        // Bitmap perantara (hasil scale) tidak dipakai lagi; `src` milik pemanggil.
+        if (scaled !== src && !scaled.isRecycled) scaled.recycle()
         return result
     }
 

@@ -101,6 +101,21 @@ data class ReceiptDraft(
     val needsReview: Boolean
         get() = confidence.needsReview || !isReconciled
 
+    /**
+     * Status yang harus disimpan.
+     *
+     * [existingStatus] adalah status baris yang sedang ditimpa, null untuk struk baru.
+     * REVIEWED dipertahankan selama hitungan masih cocok: menyimpan ulang tanpa
+     * mengubah angka tidak boleh menurunkan status yang sudah ditandai user.
+     */
+    fun reviewStatusForSave(existingStatus: String? = null): String =
+        when {
+            !isReconciled -> "PENDING"
+            existingStatus == "REVIEWED" -> "REVIEWED"
+            confidence.needsReview -> "PENDING"
+            else -> "REVIEWED"
+        }
+
     fun copyWithDefaults(): ReceiptDraft {
         val computedTotal = totalMinor ?: (itemSumMinor + (taxMinor ?: 0) - (discountMinor ?: 0))
         return copy(totalMinor = computedTotal)

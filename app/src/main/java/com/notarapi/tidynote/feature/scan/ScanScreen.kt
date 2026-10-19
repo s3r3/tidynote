@@ -55,7 +55,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -71,7 +70,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.FileOutputStream
-import androidx.compose.foundation.Image as ComposeImage
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
@@ -312,15 +310,15 @@ fun ScanScreen(
                         Column(modifier = Modifier.padding(12.dp)) {
                             Text(stringResource(R.string.receipt_image), fontWeight = FontWeight.Bold, fontSize = 16.sp)
                             Spacer(Modifier.height(8.dp))
-                            val imageBitmap = BitmapFactory.decodeFile(capturedImagePath)?.asImageBitmap()
-                            if (imageBitmap != null) {
-                                ComposeImage(
-                                    bitmap = imageBitmap,
-                                    contentDescription = stringResource(R.string.receipt_image),
-                                    modifier = Modifier.fillMaxWidth(),
-                                    contentScale = ContentScale.Fit,
-                                )
-                            }
+                            // Coil: decode di background + cache. Sebelumnya BitmapFactory
+                            // dipanggil langsung di body composable, jadi gambar full-res
+                            // di-decode ulang setiap recomposition.
+                            coil.compose.AsyncImage(
+                                model = java.io.File(capturedImagePath),
+                                contentDescription = stringResource(R.string.receipt_image),
+                                modifier = Modifier.fillMaxWidth(),
+                                contentScale = ContentScale.Fit,
+                            )
                         }
                     }
                     Spacer(Modifier.height(16.dp))
