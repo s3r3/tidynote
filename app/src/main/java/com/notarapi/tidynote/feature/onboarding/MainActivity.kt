@@ -51,6 +51,10 @@ class MainActivity : ComponentActivity() {
                             HomeScreen(
                                 onScan = { navController.navigate("scan") },
                                 onHistory = { navController.navigate("history") },
+                                // Tombol "Periksa N struk" harus membuka Riwayat
+                                // yang benar-benar tersaring ke PENDING, bukan
+                                // semua struk seperti sebelumnya.
+                                onReviewPending = { navController.navigate("history?status=PENDING") },
                                 onDashboard = { navController.navigate("dashboard") },
                                 onSettings = { navController.navigate("settings") },
                                 onOpenReceipt = { id -> navController.navigate("detail/$id") },
@@ -140,10 +144,19 @@ class MainActivity : ComponentActivity() {
                                 },
                             )
                         }
-                        composable("history") {
+                        composable(
+                            route = "history?status={status}",
+                            arguments = listOf(
+                                androidx.navigation.navArgument("status") {
+                                    type = androidx.navigation.NavType.StringType
+                                    defaultValue = "ALL"
+                                },
+                            ),
+                        ) { entry ->
                             HistoryScreen(
                                 onNavigateBack = { navController.popBackStack() },
                                 onOpenReceipt = { id -> navController.navigate("detail/$id") },
+                                initialStatus = entry.arguments?.getString("status") ?: "ALL",
                             )
                         }
                         composable("detail/{id}") { backStackEntry ->

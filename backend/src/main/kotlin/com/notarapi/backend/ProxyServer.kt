@@ -13,6 +13,7 @@ import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
+import io.ktor.server.application.log
 import io.ktor.server.auth.Authentication
 import io.ktor.server.auth.authenticate
 import io.ktor.server.auth.bearer
@@ -21,6 +22,7 @@ import io.ktor.server.netty.Netty
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.ratelimit.RateLimit
 import io.ktor.server.plugins.ratelimit.RateLimitName
+import io.ktor.server.plugins.ratelimit.rateLimit
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
@@ -50,6 +52,7 @@ fun main() {
 }
 
 fun Application.receiptProxy() {
+    val app = this
     val providerKey = System.getenv("PROVIDER_API_KEY").orEmpty()
     val providerUrl = System.getenv("PROVIDER_URL").ifNullOrBlank("https://api.openai.com/v1/chat/completions")
     val providerModel = System.getenv("PROVIDER_MODEL").ifNullOrBlank("gpt-4o-mini")
@@ -66,7 +69,18 @@ fun Application.receiptProxy() {
         bearer("app") {
             realm = "notarapi"
             authenticate { cred ->
-                if (appTokens.isEmpty() || appTokens.contains(cred.token)) UserPrincipal("app") else null
+                // Dulu: `appTokens.isEmpty() || appTokens.contains(...)`.
+                // Kalau APP_TOKENS tidak diset, SEMUA bearer token diterima —
+                // siapa pun bisa memakai proxy ini dan menghabiskan kredit
+                // provider milik pemilik server. Sekarang fail-closed: tanpa
+                // token terkonfigurasi, tidak ada yang boleh lewat. Peringatan
+                // dicatat supaya salah-konfigurasi ketahuan saat start, bukan
+                // diam-diam membuka akses.
+                if (appTokens.isEmpty()) {
+                    app.log.warn("APP_TOKENS kosong — semua permintaan akan ditolak (fail-closed).")
+                    return@authenticate null
+                }
+                if (appTokens.contains(cred.token)) UserPrincipal("app") else null
             }
         }
     }
@@ -78,8 +92,13 @@ fun Application.receiptProxy() {
 
     routing {
         authenticate("app") {
-            post("/v1/receipts/parse") { handleParse(providerUrl, providerModel, providerKey) }
-            post("/v1/receipt/extract") { handleParse(providerUrl, providerModel, providerKey) }
+            // rateLimit(...) wajib dipanggil per-route. Sebelumnya limiter
+            // di-register tapi tidak pernah dipasang ke route mana pun, jadi
+            // batas 60/menit itu tidak berpengaruh sama sekali.
+            rateLimit(RateLimitName("global")) {
+                post("/v1/receipts/parse") { handleParse(providerUrl, providerModel, providerKey) }
+                post("/v1/receipt/extract") { handleParse(providerUrl, providerModel, providerKey) }
+            }
         }
     }
 }

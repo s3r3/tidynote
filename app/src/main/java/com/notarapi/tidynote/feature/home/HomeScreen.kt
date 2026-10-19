@@ -53,6 +53,8 @@ import org.koin.compose.koinInject
 fun HomeScreen(
     onScan: () -> Unit,
     onHistory: () -> Unit,
+    /** Membuka Riwayat yang sudah tersaring ke PENDING. */
+    onReviewPending: () -> Unit,
     onDashboard: () -> Unit,
     onSettings: () -> Unit,
     onOpenReceipt: (Long) -> Unit,
@@ -112,7 +114,7 @@ fun HomeScreen(
                 }
             }
             if (summary.pendingCount > 0) {
-                OutlinedButton(onClick = onHistory, modifier = Modifier.fillMaxWidth()) { Text("Periksa ${summary.pendingCount} struk") }
+                OutlinedButton(onClick = onReviewPending, modifier = Modifier.fillMaxWidth()) { Text("Periksa ${summary.pendingCount} struk") }
             }
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text("Transaksi terbaru", fontWeight = FontWeight.Bold)

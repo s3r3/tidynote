@@ -58,13 +58,20 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HistoryScreen(onNavigateBack: () -> Unit, onOpenReceipt: (Long) -> Unit = {}) {
+fun HistoryScreen(
+    onNavigateBack: () -> Unit,
+    onOpenReceipt: (Long) -> Unit = {},
+    // Tombol "Periksa N struk" di Home mengirim "PENDING" ke sini. Sebelumnya
+    // layar ini selalu mulai dari "ALL", jadi tombol yang menjanjikan daftar
+    // struk yang perlu diperiksa justru menampilkan semua struk.
+    initialStatus: String = "ALL",
+) {
     val repository: ReceiptRepository = koinInject()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
     var searchQuery by remember { mutableStateOf("") }
-    var selectedStatus by remember { mutableStateOf("ALL") }
+    var selectedStatus by remember(initialStatus) { mutableStateOf(initialStatus) }
     var selectedCategoryId by remember { mutableStateOf<Long?>(null) }
     var categoryExpanded by remember { mutableStateOf(false) }
     var statusExpanded by remember { mutableStateOf(false) }
