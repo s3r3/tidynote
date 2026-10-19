@@ -75,9 +75,15 @@ junit-jupiter = "5.11.3"
 junit-platform = "1.11.3"
 truth = "1.1.5"
 espresso = "3.6.1"
-compose-test = "1.6.10"
+# 1.6.10 tidak pernah dirilis untuk compose ui-test — rilis 1.6.x berhenti di
+# 1.6.8. Compose BOM 2024.10.01 memetakan androidx.compose.ui ke 1.7.5, jadi
+# artefak test-nya harus 1.7.5 juga, kalau tidak versinya bentrok.
+compose-test = "1.7.5"
 room-testing = "2.8.5"
 robolectric = "4.12"
+# Sepasang dengan androidx.test 1.6.x (era espresso 3.6.1).
+androidx-test-ext-junit = "1.2.1"
+androidx-test-runner = "1.6.2"
 
 # Lint / Quality
 ktlint = "9.4.1"
@@ -149,6 +155,8 @@ espresso-core = { group = "androidx.test.espresso", name = "espresso-core", vers
 compose-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4", version.ref = "compose-test" }
 compose-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest", version.ref = "compose-test" }
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
+androidx-test-ext-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidx-test-ext-junit" }
+androidx-test-runner = { group = "androidx.test", name = "runner", version.ref = "androidx-test-runner" }
 
 # Backend proxy (Ktor server — deploy sendiri, bukan di APK)
 ktor-server-core = { group = "io.ktor", name = "ktor-server-core-jvm", version.ref = "ktor" }

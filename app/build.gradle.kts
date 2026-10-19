@@ -156,6 +156,12 @@ dependencies {
     testImplementation(libs.compose.test.junit4)
     androidTestImplementation(libs.espresso.core)
     androidTestImplementation(libs.compose.test.junit4)
+    // MigrationTest butuh keduanya. Sebelumnya tidak ada satu pun, sehingga
+    // file test migrasi tidak pernah bisa di-compile — dan justru itu sebabnya
+    // bug index di MIGRATION_1_2 lolos sampai ke produksi.
+    androidTestImplementation(libs.room.testing)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.test.runner)
 }
 
 tasks.withType<Test> {
@@ -163,7 +169,11 @@ tasks.withType<Test> {
 }
 
 ktlint {
-    version.set("9.4.1")
+    // Dulu di sini ada `version.set("9.4.1")`. Itu versi PLUGIN Gradle-nya
+    // (org.jlleitschuh.gradle.ktlint), bukan versi CLI ktlint. Artefak
+    // com.pinterest:ktlint berhenti di 0.51.0-FINAL — 9.4.1 tidak pernah ada,
+    // jadi ktlintCheck SELALU gagal resolve, bukan cuma saat offline.
+    // Dibiarkan kosong supaya plugin memakai versi bawaan yang cocok.
     debug.set(false)
 }
 
