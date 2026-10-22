@@ -4,18 +4,18 @@
 
 # TidyNote
 
-**Pencatat belanja offline-first untuk UMKM Indonesia — scan struk, langsung tercatat.**
+**An offline-first expense tracker for Indonesian small businesses — scan a receipt, and it's recorded.**
 
-TidyNote (NotaRapi) memindai struk belanja dengan ML Kit di perangkat, mem-parsing-nya
-dengan aturan Indonesia (IDR, NPWP, PPN 11%), dan menyimpannya sebagai catatan
-pengeluaran yang rapi — tanpa akun, tanpa pelacakan, tanpa internet.
+TidyNote (NotaRapi) scans shopping receipts with ML Kit on the device, parses them
+with Indonesian rules (IDR, NPWP, 11% VAT/PPN), and stores them as neat expense
+records — no account, no tracking, no internet required.
 
 <br />
 
 [![Version](https://img.shields.io/badge/version-1.0.0-006B56?style=for-the-badge)](https://github.com/s3r3/tidynote/releases)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue?style=for-the-badge)](LICENSE)
-[![Platform](https://img.shields.io/badge/Android-10%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white)](#-persyaratan)
-[![Min SDK](https://img.shields.io/badge/minSdk-29-brightgreen?style=for-the-badge)](#-persyaratan)
+[![Platform](https://img.shields.io/badge/Android-10%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white)](#-requirements)
+[![Min SDK](https://img.shields.io/badge/minSdk-29-brightgreen?style=for-the-badge)](#-requirements)
 
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.2.20-7F52FF?style=flat-square&logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?style=flat-square&logo=jetpackcompose&logoColor=white)](https://developer.android.com/jetpack/compose)
@@ -25,84 +25,84 @@ pengeluaran yang rapi — tanpa akun, tanpa pelacakan, tanpa internet.
 
 <br />
 
-[**Fitur**](#-fitur) &nbsp;·&nbsp;
-[**Video Promo**](#-video-promo) &nbsp;·&nbsp;
-[**Memulai**](#-memulai) &nbsp;·&nbsp;
-[**Backend AI**](#-backend-ai-opsional) &nbsp;·&nbsp;
-[**Laporkan Bug**](https://github.com/s3r3/tidynote/issues)
+[**Features**](#-features) &nbsp;·&nbsp;
+[**Promo**](#-promo) &nbsp;·&nbsp;
+[**Getting Started**](#-getting-started) &nbsp;·&nbsp;
+[**AI Backend**](#-backend-ai-optional) &nbsp;·&nbsp;
+[**Report a Bug**](https://github.com/s3r3/tidynote/issues)
 
 </div>
 
 ---
 
-## 📑 Daftar Isi
+## 📑 Table of Contents
 
-- [Fitur](#-fitur)
-- [Video Promo](#-video-promo)
-- [Teknologi](#-teknologi)
-- [Persyaratan](#-persyaratan)
-- [Memulai](#-memulai)
-- [Struktur Proyek](#-struktur-proyek)
-- [Backend AI (Opsional)](#-backend-ai-opsional)
-- [Rilis](#-rilis)
-- [Privasi](#-privasi)
-- [Lisensi](#-lisensi)
+- [Features](#-features)
+- [Promo](#-promo)
+- [Tech Stack](#-tech-stack)
+- [Requirements](#-requirements)
+- [Getting Started](#-getting-started)
+- [Project Structure](#-project-structure)
+- [Backend AI (Optional)](#-backend-ai-optional)
+- [Release Builds](#-release-builds)
+- [Privacy](#-privacy)
+- [License](#-license)
 
 ---
 
-## ✨ Fitur
+## ✨ Features
 
 <table>
   <tr>
     <td width="50%" valign="top">
 
-### 📷 Scan & OCR Offline
-- ML Kit Document Scanner: deteksi & potong struk otomatis
-- Text Recognition berjalan **di perangkat** — tanpa internet
-- Bisa juga pilih foto struk dari galeri
+### 📷 Offline Scan & OCR
+- ML Kit Document Scanner: automatic receipt detection & cropping
+- Text Recognition runs **on-device** — no internet needed
+- Or pick a receipt photo from the gallery
 
     </td>
     <td width="50%" valign="top">
 
-### 🧾 Parser Indonesia
-- Ekstraksi merchant, tanggal, item, subtotal, diskon, total
-- Mendukung format **IDR, NPWP, dan PPN 11%**
-- Indikator *confidence* per hasil — nilai meragukan ditandai untuk diperiksa
-
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" valign="top">
-
-### ✅ Review & Koreksi
-- Semua nilai hasil scan bisa diedit manual sebelum disimpan
-- Kategori bawaan: Makanan & Minuman, Bahan Baku, Peralatan, Kebersihan, Transport, Lainnya
-- Opsi **Perbaiki dengan AI** (opt-in, lihat Backend AI)
-
-    </td>
-    <td width="50%" valign="top">
-
-### 📊 Dashboard & Riwayat
-- Total belanja bulan ini, struk yang perlu diperiksa, transaksi terbaru
-- Grafik pengeluaran per kategori
-- Riwayat lengkap: cari, filter, duplikasi, bagikan, detail + foto struk
+### 🧾 Indonesian Receipt Parser
+- Extracts merchant, date, line items, subtotal, discount, and total
+- Understands **IDR formatting, NPWP, and 11% VAT (PPN)**
+- Per-field *confidence* indicator — doubtful values are flagged for review
 
     </td>
   </tr>
   <tr>
     <td width="50%" valign="top">
 
-### 💾 Ekspor & Backup
-- Ekspor catatan ke **CSV** dan **PDF**
-- Backup terenkripsi (Google Tink) + restore
+### ✅ Review & Edit
+- Every scanned value can be edited manually before saving
+- Built-in categories: Food & Drink, Ingredients, Equipment, Cleaning, Transport, Other
+- Optional **Fix with AI** (opt-in, see Backend AI)
 
     </td>
     <td width="50%" valign="top">
 
-### 🔒 Privasi
-- **Tanpa akun, tanpa iklan, tanpa pelacakan**
-- Semua data di perangkat; backup sistem Android untuk database dinonaktifkan
-- AI cloud mati secara default — lihat [PRIVACY.md](PRIVACY.md)
+### 📊 Dashboard & History
+- This month's total spending, receipts needing review, latest transactions
+- Spending chart per category
+- Full history: search, filter, duplicate, share, detail view with the receipt photo
+
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+
+### 💾 Export & Backup
+- Export records to **CSV** and **PDF**
+- Encrypted backup (Google Tink) + restore
+
+    </td>
+    <td width="50%" valign="top">
+
+### 🔒 Privacy
+- **No accounts, no ads, no tracking**
+- All data stays on the device; Android system backup is disabled for the database
+- Cloud AI is off by default — see [PRIVACY.md](PRIVACY.md)
 
     </td>
   </tr>
@@ -110,7 +110,7 @@ pengeluaran yang rapi — tanpa akun, tanpa pelacakan, tanpa internet.
 
 ---
 
-## 🎬 Video Promo
+## 🎬 Promo
 
 <div align="center">
 
@@ -118,128 +118,135 @@ pengeluaran yang rapi — tanpa akun, tanpa pelacakan, tanpa internet.
 
 <br />
 
-[Tonton / unduh video promo](docs/promo-tidynote.mp4)
+[Watch / download the promo video](docs/promo-tidynote.mp4)
 
 </div>
 
 ---
 
-## 🛠 Teknologi
+## 🛠 Tech Stack
 
-| Area | Pilihan |
-|------|---------|
-| **Bahasa** | Kotlin 2.2.20 |
+| Area | Choice |
+|------|--------|
+| **Language** | Kotlin 2.2.20 |
 | **UI** | Jetpack Compose (BOM 2024.10.01), Material 3 |
 | **OCR** | ML Kit Document Scanner + Text Recognition (on-device) |
 | **Persistence** | Room 2.8.5, DataStore 1.1.1 |
 | **DI** | Koin 3.5.6 |
-| **Gambar** | Coil 2.7.0 |
-| **Background work** | WorkManager 2.9.1 (retry ekstraksi AI) |
-| **Backend** | Ktor 3.1.3 (modul `:backend`, deploy terpisah) |
+| **Images** | Coil 2.7.0 |
+| **Background work** | WorkManager 2.9.1 (AI extraction retries) |
+| **Backend** | Ktor 3.1.3 (`:backend` module, deployed separately) |
 | **Build** | Gradle 9.8.0, AGP 8.7.3, version catalog (`gradle/libs.versions.toml`) |
 
 > **SDK:** `minSdk` 29 · `compileSdk` / `targetSdk` 36 · JVM target 21
 
 ---
 
-## 📋 Persyaratan
+## 📋 Requirements
 
 - JDK 21
 - Android SDK 36
-- Perangkat/emulator Android 10+ (API 29)
+- Device/emulator on Android 10+ (API 29)
 
 ---
 
-## 🚀 Memulai
+## 🚀 Getting Started
 
 ```bash
 git clone https://github.com/s3r3/tidynote.git
 cd tidynote
 ./gradlew :app:assembleDebug
-./gradlew :app:installDebug   # dengan perangkat/emulator terhubung
+./gradlew :app:installDebug   # with a device/emulator connected
 ```
 
 Debug APK: `app/build/outputs/apk/debug/app-debug.apk`
-(varian debug memakai `applicationId` suffix `.debug`, bisa berdampingan dengan versi rilis.)
+(the debug variant uses the `.debug` applicationId suffix, so it can live next to the release build.)
 
 ---
 
-## 🗂 Struktur Proyek
+## 🗂 Project Structure
 
 ```
-app/                          # Modul aplikasi Android (com.notarapi.tidynote)
+app/                          # Android app module (com.notarapi.tidynote)
   feature/
     onboarding/               # Onboarding + MainActivity
-    home/                     # Beranda & ringkasan
-    scan/                     # Alur pemindaian struk (ML Kit)
-    review/                   # Review & koreksi hasil OCR
-    detail/                   # Detail struk
-    history/                  # Riwayat, ekspor CSV/PDF
-    dashboard/                # Statistik & grafik kategori
-    settings/                 # Pengaturan, AI, hapus data
+    home/                     # Home & summary
+    scan/                     # Receipt scanning flow (ML Kit)
+    review/                   # OCR result review & editing
+    detail/                   # Receipt detail
+    history/                  # History, CSV/PDF export
+    dashboard/                # Statistics & category charts
+    settings/                 # Settings, AI, delete data
   core/
-    database/                 # Room (struk, item, kategori)
-    model/ storage/ prefs/    # Model, file gambar struk, preferensi
-    backup/                   # Backup terenkripsi (Tink) & restore CSV
-    util/                     # Confidence color, dsb.
-  data/receipt/               # Repository struk
+    database/                 # Room (receipts, items, categories)
+    model/ storage/ prefs/    # Models, receipt image files, preferences
+    backup/                   # Encrypted backup (Tink) & CSV restore
+    util/                     # Confidence colors, etc.
+  data/receipt/               # Receipt repository
   extraction/
     ocr/                      # ML Kit OCR helper
-    parser/                   # Parser struk Indonesia (IDR/NPWP/PPN)
-backend/                      # Proxy Ktor untuk AI cloud (opsional, deploy sendiri)
+    parser/                   # Indonesian receipt parser (IDR/NPWP/VAT)
+backend/                      # Ktor proxy for cloud AI (optional, self-hosted)
 ```
 
 ---
 
-## 🤖 Backend AI (Opsional)
+## 🤖 Backend AI (Optional)
 
-Aplikasi bekerja penuh secara offline. Bantuan AI cloud hanya aktif jika kamu
-menjalankan backend sendiri dan mengaktifkannya di **Pengaturan → AI**:
+The app works fully offline. Cloud AI assistance only activates if you run your
+own backend and enable it in **Settings → AI**:
 
-- Backend menerima teks OCR (bukan foto) lewat `POST /v1/receipts/parse`
-- Kredensial lewat environment: `PROVIDER_API_KEY`, `APP_TOKENS`
-- Jalankan: `./gradlew :backend:run` (port 8080)
+- The backend receives OCR text (not photos) via `POST /v1/receipts/parse`
+- Credentials via environment: `PROVIDER_API_KEY`, `APP_TOKENS`
+- Run it: `./gradlew :backend:run` (port 8080)
 
-Detail integrasi: [INTEGRATION_NOTES.md](INTEGRATION_NOTES.md).
-Di build produksi, `LLM_API_KEY` pada `local.properties` **harus kosong** — nilai itu
-tertanam di APK dan hanya untuk demo internal.
+Integration details: [INTEGRATION_NOTES.md](INTEGRATION_NOTES.md).
+In production builds, `LLM_API_KEY` in `local.properties` **must be empty** — that
+value is embedded into the APK and is meant for internal demos only.
 
 ---
 
-## 📦 Rilis
+## 📦 Release Builds
 
 ```bash
 ./gradlew :app:bundleRelease
 ```
 
-Menghasilkan AAB di `app/build/outputs/bundle/release/` (minify + shrink resources aktif).
+Produces the AAB in `app/build/outputs/bundle/release/` (minify + resource shrinking on).
+
+Signing is supplied via environment variables or Gradle properties (**never commit a keystore**):
+
+- `RELEASE_STORE_FILE`, `RELEASE_STORE_PASSWORD`
+- `RELEASE_KEY_ALIAS`, `RELEASE_KEY_PASSWORD`
+
+Without them, the release build falls back to the debug signing config.
 
 ---
 
-## 🔐 Privasi
+## 🔐 Privacy
 
-TidyNote **tidak mengumpulkan data pribadi dan tidak membagikan data ke pihak ketiga**.
+TidyNote **collects no personal data and shares no data with third parties**.
 
-- OCR berjalan di perangkat; foto struk tersimpan lokal di penyimpanan aplikasi.
-- AI cloud **default mati**. Hanya jika kamu mengaktifkannya dan menekan
-  *Perbaiki dengan AI*, teks OCR (maks. 8.000 karakter, bukan foto) dikirim ke backend kamu sendiri.
-- Tidak ada akun, pelacakan iklan, atau pengiriman data otomatis.
+- OCR runs on-device; receipt photos are stored locally in the app's storage.
+- Cloud AI is **off by default**. Only if you enable it and tap *Fix with AI* is the
+  OCR text (max. 8,000 characters, never the photo) sent to your own backend.
+- No accounts, no ad tracking, no automatic data uploads.
 
-Teks lengkap: [PRIVACY.md](PRIVACY.md).
+Full text: [PRIVACY.md](PRIVACY.md).
 
 ---
 
-## 📄 Lisensi
+## 📄 License
 
-Didistribusikan di bawah [Apache License 2.0](LICENSE).
-Notices pihak ketiga: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Distributed under the [Apache License 2.0](LICENSE).
+Third-party notices: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 <div align="center">
 
 <br />
 
-Dibuat untuk warung & toko kecil Indonesia 🇮🇩
+Made for Indonesian warungs & small shops 🇮🇩
 
-⭐ **Kalau TidyNote berguna buatmu, kasih star ya!**
+⭐ **If TidyNote is useful to you, consider starring the repo!**
 
 </div>
