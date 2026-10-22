@@ -12,6 +12,21 @@ plugins {
     alias(libs.plugins.kover)
 }
 
+// Release signing via env vars / gradle properties (JANGAN commit keystore):
+// RELEASE_STORE_FILE, RELEASE_STORE_PASSWORD, RELEASE_KEY_ALIAS, RELEASE_KEY_PASSWORD
+val releaseStoreFile =
+    providers.environmentVariable("RELEASE_STORE_FILE").orNull
+        ?: project.findProperty("RELEASE_STORE_FILE") as String?
+val releaseStorePassword =
+    providers.environmentVariable("RELEASE_STORE_PASSWORD").orNull
+        ?: project.findProperty("RELEASE_STORE_PASSWORD") as String?
+val releaseKeyAlias =
+    providers.environmentVariable("RELEASE_KEY_ALIAS").orNull
+        ?: project.findProperty("RELEASE_KEY_ALIAS") as String?
+val releaseKeyPassword =
+    providers.environmentVariable("RELEASE_KEY_PASSWORD").orNull
+        ?: project.findProperty("RELEASE_KEY_PASSWORD") as String?
+
 android {
     namespace = "com.notarapi.tidynote"
     compileSdk = 36
@@ -59,8 +74,25 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release") {
+            if (releaseStoreFile != null) {
+                storeFile = file(releaseStoreFile)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig =
+                if (releaseStoreFile != null) {
+                    signingConfigs.getByName("release")
+                } else {
+                    signingConfigs.getByName("debug")
+                }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
