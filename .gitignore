@@ -9,3 +9,6 @@ build
 
 # Kredensial build lokal — JANGAN commit (mode development).
 local.properties
+
+# APK hasil build — distribusi lewat GitHub Releases, bukan repo
+release/
