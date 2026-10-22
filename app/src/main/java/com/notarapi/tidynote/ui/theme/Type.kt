@@ -6,6 +6,17 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
+/**
+ * Angka uang memakai tabular figure supaya digit tidak "menari" saat nominal
+ * berubah (mis. saat edit total di Review). Font sistem Android mendukung "tnum".
+ */
+val MoneyTextStyle =
+    TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Bold,
+        fontFeatureSettings = "tnum",
+    )
+
 val TidyNoteTypography =
     Typography(
         displayLarge =

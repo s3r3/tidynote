@@ -229,7 +229,11 @@ class ReceiptRepositoryImpl(
                 dao.updateReceipt(
                     existing.copy(
                         merchantId = merchantId,
-                        transactionDate = draft.transactionDate?.toEpochMilli() ?: existing.transactionDate,
+                        // Draft dari getDraftForEdit sudah membawa tanggal tersimpan,
+                        // jadi null di sini berarti user mengosongkan field-nya. Dulu
+                        // ada fallback ke existing.transactionDate yang membuat
+                        // penghapusan tanggal tidak pernah benar-benar tersimpan.
+                        transactionDate = draft.transactionDate?.toEpochMilli(),
                         currency = draft.currency,
                         subtotalMinor = draft.subtotalMinor,
                         discountMinor = draft.discountMinor,

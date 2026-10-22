@@ -6,34 +6,38 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PrivacyTip
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,15 +45,23 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.notarapi.tidynote.R
+import com.notarapi.tidynote.core.prefs.AppPreferences
+import com.notarapi.tidynote.core.prefs.ThemeMode
 import com.notarapi.tidynote.data.receipt.ReceiptRepository
+import com.notarapi.tidynote.ui.design.TidyCard
+import com.notarapi.tidynote.ui.design.TidyTab
+import com.notarapi.tidynote.ui.design.TidyTabScaffold
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -57,10 +69,16 @@ import org.koin.compose.koinInject
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(onNavigateBack: () -> Unit) {
+fun SettingsScreen(
+    onScan: () -> Unit,
+    onNavigateTab: (TidyTab) -> Unit,
+) {
     val context = LocalContext.current
     val repository: ReceiptRepository = koinInject()
+    val prefs: AppPreferences = koinInject()
     val scope = rememberCoroutineScope()
+
+    val themeMode by prefs.themeMode.collectAsStateWithLifecycle(initialValue = ThemeMode.SYSTEM)
 
     var useCloudAi by remember { mutableStateOf(getCloudAiEnabled(context)) }
     var llmApiKey by remember { mutableStateOf(getSavedBackendToken(context)) }
@@ -76,9 +94,7 @@ fun SettingsScreen(onNavigateBack: () -> Unit) {
 
     val backupLauncher =
         rememberLauncherForActivityResult(
-            contract =
-                androidx.activity.result.contract.ActivityResultContracts
-                    .OpenDocument(),
+            contract = androidx.activity.result.contract.ActivityResultContracts.OpenDocument(),
         ) { uri ->
             if (uri != null) {
                 scope.launch {
@@ -96,9 +112,7 @@ fun SettingsScreen(onNavigateBack: () -> Unit) {
                             val csv =
                                 com.notarapi.tidynote.core.backup.EncryptedBackup
                                     .importEncrypted(tmp, backupPassphrase)
-                            val rows =
-                                com.notarapi.tidynote.core.backup.CsvBackupParser
-                                    .parse(csv)
+                            val rows = com.notarapi.tidynote.core.backup.CsvBackupParser.parse(csv)
                             val n = repository.restoreFromBackup(rows)
                             "Berhasil memulihkan $n struk"
                         } catch (e: Exception) {
@@ -108,82 +122,111 @@ fun SettingsScreen(onNavigateBack: () -> Unit) {
             }
         }
 
-    androidx.compose.runtime.LaunchedEffect(Unit) {
+    LaunchedEffect(Unit) {
         storageSize = calculateStorageSize(context)
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.settings)) },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back))
-                    }
-                },
-                colors =
-                    TopAppBarDefaults.topAppBarColors(
-                        containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainer,
-                    ),
-            )
-        },
+    TidyTabScaffold(
+        title = stringResource(R.string.settings),
+        selected = TidyTab.SETTINGS,
+        onNavigateTab = onNavigateTab,
+        onScan = onScan,
     ) { padding ->
+        // Dulu Column ini tanpa scroll: kartu-kartunya melebihi tinggi layar dan
+        // bagian bawah (backup, hapus data) tidak bisa dijangkau sama sekali.
         Column(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(padding)
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors =
-                    CardDefaults.cardColors(
-                        containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow,
-                    ),
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(
-                            Icons.Default.Cloud,
-                            contentDescription = null,
-                            tint = androidx.compose.material3.MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(24.dp).padding(end = 12.dp),
-                        )
-                        Text(
-                            stringResource(R.string.cloud_ai),
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp,
-                            color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface,
-                        )
-                    }
+            // ---------------------------------------------------------------
+            // Tampilan — pilihan tema terang/gelap/sistem
+            // ---------------------------------------------------------------
+            TidyCard(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    SectionTitle(icon = Icons.Default.Palette, title = "Tampilan")
                     Spacer(Modifier.height(12.dp))
-                    Column {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Column {
-                                Text(stringResource(R.string.cloud_ai), fontWeight = FontWeight.Bold)
-                                Text(
-                                    stringResource(R.string.cloud_ai_summary),
-                                    fontSize = 12.sp,
-                                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                            Switch(
-                                checked = useCloudAi,
-                                onCheckedChange = {
-                                    useCloudAi = it
-                                    saveCloudAiEnabled(context, it)
+                    Text(
+                        "Mode tema",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        "Pilihan disimpan dan dipakai lagi saat aplikasi dibuka.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    val options =
+                        listOf(
+                            ThemeMode.SYSTEM to "Sistem",
+                            ThemeMode.LIGHT to "Terang",
+                            ThemeMode.DARK to "Gelap",
+                        )
+                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                        options.forEachIndexed { index, (mode, label) ->
+                            SegmentedButton(
+                                selected = themeMode == mode,
+                                onClick = { prefs.setThemeMode(mode) },
+                                shape =
+                                    SegmentedButtonDefaults.itemShape(
+                                        index = index,
+                                        count = options.size,
+                                    ),
+                                icon = {
+                                    if (mode == ThemeMode.DARK) {
+                                        Icon(
+                                            Icons.Default.DarkMode,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(SegmentedButtonDefaults.IconSize),
+                                        )
+                                    }
                                 },
-                                modifier = Modifier.padding(start = 16.dp),
-                            )
+                            ) { Text(label) }
                         }
                     }
+                }
+            }
+
+            // ---------------------------------------------------------------
+            // AI
+            // ---------------------------------------------------------------
+            TidyCard(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    SectionTitle(icon = Icons.Default.Cloud, title = stringResource(R.string.cloud_ai))
+                    Spacer(Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                stringResource(R.string.cloud_ai),
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            Text(
+                                stringResource(R.string.cloud_ai_summary),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Switch(
+                            checked = useCloudAi,
+                            onCheckedChange = {
+                                useCloudAi = it
+                                saveCloudAiEnabled(context, it)
+                            },
+                            modifier = Modifier.padding(start = 16.dp),
+                        )
+                    }
                     if (useCloudAi) {
-                        androidx.compose.material3.TextField(
+                        TextField(
                             value = llmBackendUrl,
                             onValueChange = {
                                 llmBackendUrl = it
@@ -194,7 +237,7 @@ fun SettingsScreen(onNavigateBack: () -> Unit) {
                             modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
                             singleLine = true,
                         )
-                        androidx.compose.material3.TextField(
+                        TextField(
                             value = llmApiKey,
                             onValueChange = {
                                 llmApiKey = it
@@ -202,38 +245,29 @@ fun SettingsScreen(onNavigateBack: () -> Unit) {
                             },
                             label = { Text("Token backend (sementara)") },
                             placeholder = { Text("Token dari backend Anda setelah login") },
-                            modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
                             singleLine = true,
                             visualTransformation = PasswordVisualTransformation,
                         )
-                        Text(
+                        Hint(
                             "Opsional. Default mati. Jika diaktifkan, hanya teks OCR " +
                                 "(maks 8000 karakter, bukan foto) yang dikirim ke backend " +
                                 "milik Anda setelah Anda menekan Perbaiki dengan AI.",
-                            fontSize = 12.sp,
-                            color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 8.dp),
                         )
                         Spacer(Modifier.height(12.dp))
-                        androidx.compose.material3.HorizontalDivider(
-                            color = androidx.compose.material3.MaterialTheme.colorScheme.outlineVariant,
-                        )
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         Spacer(Modifier.height(12.dp))
                         Text(
                             "ATAU langsung pakai API key (tanpa backend)",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp,
-                            color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
                         )
-                        Text(
+                        Hint(
                             "Isi API key provider OpenAI-compatible (mis. OpenAI/Groq/OpenRouter). " +
                                 "Key disimpan di HP ini saja, tidak ikut ke dalam APK. " +
                                 "Hanya teks OCR yang dikirim setelah Anda menekan Perbaiki dengan AI.",
-                            fontSize = 12.sp,
-                            color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 4.dp),
                         )
-                        androidx.compose.material3.TextField(
+                        TextField(
                             value = directApiKey,
                             onValueChange = {
                                 directApiKey = it
@@ -245,7 +279,7 @@ fun SettingsScreen(onNavigateBack: () -> Unit) {
                             singleLine = true,
                             visualTransformation = PasswordVisualTransformation,
                         )
-                        androidx.compose.material3.TextField(
+                        TextField(
                             value = directBaseUrl,
                             onValueChange = {
                                 directBaseUrl = it
@@ -256,7 +290,7 @@ fun SettingsScreen(onNavigateBack: () -> Unit) {
                             modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
                             singleLine = true,
                         )
-                        androidx.compose.material3.TextField(
+                        TextField(
                             value = directModel,
                             onValueChange = {
                                 directModel = it
@@ -272,10 +306,10 @@ fun SettingsScreen(onNavigateBack: () -> Unit) {
                             "Sumber AI: " +
                                 com.notarapi.tidynote.extraction.llm.LlmConfig
                                     .sourceLabel(llmBackendUrl, llmApiKey, directApiKey),
-                            fontSize = 12.sp,
+                            style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.Bold,
-                            color = androidx.compose.material3.MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(top = 4.dp),
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(top = 8.dp),
                         )
                         if (com.notarapi.tidynote.extraction.llm.LlmConfig.hasDevKey &&
                             !(llmBackendUrl.isNotBlank() && llmApiKey.isNotBlank())
@@ -285,8 +319,8 @@ fun SettingsScreen(onNavigateBack: () -> Unit) {
                                     "dalam APK (dari local.properties). Bisa dibongkar orang lain " +
                                     "dan memakai kuota Anda. Hanya untuk internal/demo — untuk " +
                                     "publik, kosongkan LLM_API_KEY di local.properties lalu build ulang.",
-                                fontSize = 12.sp,
-                                color = androidx.compose.material3.MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
                                 modifier = Modifier.padding(top = 8.dp),
                             )
                         }
@@ -294,77 +328,43 @@ fun SettingsScreen(onNavigateBack: () -> Unit) {
                 }
             }
 
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors =
-                    CardDefaults.cardColors(
-                        containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow,
-                    ),
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(
-                            Icons.Default.PrivacyTip,
-                            contentDescription = null,
-                            tint = androidx.compose.material3.MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(24.dp).padding(end = 12.dp),
-                        )
-                        Text(
-                            stringResource(R.string.privacy),
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp,
-                            color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface,
-                        )
-                    }
+            // ---------------------------------------------------------------
+            // Privasi
+            // ---------------------------------------------------------------
+            TidyCard(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    SectionTitle(
+                        icon = Icons.Default.PrivacyTip,
+                        title = stringResource(R.string.privacy),
+                    )
                     Spacer(Modifier.height(12.dp))
-                    Column {
-                        Text(stringResource(R.string.privacy), fontWeight = FontWeight.Bold)
-                        Text(
-                            "Data tersimpan lokal di perangkat. Tidak ada data yang dikirim ke server tanpa izin.",
-                            fontSize = 12.sp,
-                            color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Text(
-                            "Ukuran penyimpanan: $storageSize",
-                            fontSize = 12.sp,
-                            color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                    Text(
+                        "Data tersimpan lokal di perangkat. Tidak ada data yang dikirim ke server tanpa izin.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        "Ukuran penyimpanan: $storageSize",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
                 }
             }
 
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors =
-                    CardDefaults.cardColors(
-                        containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow,
-                    ),
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.Lock,
-                            contentDescription = null,
-                            tint = androidx.compose.material3.MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(24.dp).padding(end = 12.dp),
-                        )
-                        Text(
-                            "Backup terenkripsi",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp,
-                            color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface,
-                        )
-                    }
+            // ---------------------------------------------------------------
+            // Backup
+            // ---------------------------------------------------------------
+            TidyCard(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    SectionTitle(icon = Icons.Default.Lock, title = "Backup terenkripsi")
                     Spacer(Modifier.height(12.dp))
                     Text(
                         "Cadangkan semua struk jadi satu file .tnbak yang dienkripsi dengan passphrase Anda.",
-                        fontSize = 12.sp,
-                        color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    androidx.compose.material3.TextField(
+                    TextField(
                         value = backupPassphrase,
                         onValueChange = { backupPassphrase = it },
                         label = { Text("Passphrase backup (min 4 karakter)") },
@@ -372,7 +372,10 @@ fun SettingsScreen(onNavigateBack: () -> Unit) {
                         singleLine = true,
                         visualTransformation = PasswordVisualTransformation,
                     )
-                    Row(modifier = Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
                         Button(
                             onClick = {
                                 scope.launch {
@@ -398,77 +401,56 @@ fun SettingsScreen(onNavigateBack: () -> Unit) {
                             enabled = backupPassphrase.length >= 4,
                         ) { Text("Buat backup") }
                         OutlinedButton(
-                            onClick = {
-                                backupLauncher.launch(arrayOf("application/octet-stream"))
-                            },
+                            onClick = { backupLauncher.launch(arrayOf("application/octet-stream")) },
                         ) { Text("Pulihkan") }
                     }
                     backupMessage?.let { msg ->
                         Text(
                             msg,
-                            fontSize = 12.sp,
-                            color = androidx.compose.material3.MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.padding(top = 8.dp),
                         )
                     }
                 }
             }
 
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors =
-                    CardDefaults.cardColors(
-                        containerColor = androidx.compose.material3.MaterialTheme.colorScheme.errorContainer,
-                    ),
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(
-                            Icons.Default.DeleteForever,
-                            contentDescription = null,
-                            tint = androidx.compose.material3.MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(24.dp).padding(end = 12.dp),
-                        )
-                        Text(
-                            stringResource(R.string.delete_all_data),
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp,
-                            color = androidx.compose.material3.MaterialTheme.colorScheme.error,
-                        )
-                    }
+            // ---------------------------------------------------------------
+            // Hapus data
+            // ---------------------------------------------------------------
+            TidyCard(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    SectionTitle(
+                        icon = Icons.Default.DeleteForever,
+                        title = stringResource(R.string.delete_all_data),
+                        tint = MaterialTheme.colorScheme.error,
+                    )
                     Spacer(Modifier.height(12.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Column {
-                            Text(
-                                stringResource(R.string.delete_all_data),
-                                fontWeight = FontWeight.Bold,
-                                color = androidx.compose.material3.MaterialTheme.colorScheme.error,
-                            )
-                            Text(
-                                stringResource(R.string.delete_all_data_confirm),
-                                fontSize = 12.sp,
-                                color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
+                        Text(
+                            stringResource(R.string.delete_all_data_confirm),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f),
+                        )
                         Button(
                             onClick = { showDeleteConfirm = true },
                             enabled = !isDeleting,
                             colors =
-                                androidx.compose.material3.ButtonDefaults.buttonColors(
-                                    containerColor = androidx.compose.material3.MaterialTheme.colorScheme.error,
+                                ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.error,
+                                    contentColor = MaterialTheme.colorScheme.onError,
                                 ),
+                            modifier = Modifier.padding(start = 12.dp),
                         ) {
                             if (isDeleting) {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(16.dp),
-                                    color = androidx.compose.material3.MaterialTheme.colorScheme.onError,
+                                    color = MaterialTheme.colorScheme.onError,
                                 )
                             } else {
                                 Text(stringResource(R.string.delete_all_data))
@@ -478,45 +460,28 @@ fun SettingsScreen(onNavigateBack: () -> Unit) {
                 }
             }
 
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors =
-                    CardDefaults.cardColors(
-                        containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow,
-                    ),
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(
-                            Icons.Default.Info,
-                            contentDescription = null,
-                            tint = androidx.compose.material3.MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(24.dp).padding(end = 12.dp),
-                        )
-                        Text(
-                            stringResource(R.string.about),
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp,
-                            color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface,
-                        )
-                    }
+            // ---------------------------------------------------------------
+            // Tentang
+            // ---------------------------------------------------------------
+            TidyCard(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    SectionTitle(icon = Icons.Default.Info, title = stringResource(R.string.about))
                     Spacer(Modifier.height(12.dp))
-                    Column {
-                        Text(stringResource(R.string.app_name_full), fontWeight = FontWeight.Bold)
-                        Text(
-                            stringResource(R.string.version) + " 1.0.0",
-                            fontSize = 12.sp,
-                            color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Text(
-                            "Offline-first receipt scanner untuk UMKM Indonesia",
-                            fontSize = 12.sp,
-                            color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                    Text(
+                        stringResource(R.string.app_name_full),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        stringResource(R.string.version) + " 1.0.0",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        "Offline-first receipt scanner untuk UMKM Indonesia",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
         }
@@ -546,8 +511,9 @@ fun SettingsScreen(onNavigateBack: () -> Unit) {
                         }
                     },
                     colors =
-                        androidx.compose.material3.ButtonDefaults.buttonColors(
-                            containerColor = androidx.compose.material3.MaterialTheme.colorScheme.error,
+                        ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error,
+                            contentColor = MaterialTheme.colorScheme.onError,
                         ),
                 ) { Text(stringResource(R.string.delete_all_data)) }
             },
@@ -558,6 +524,38 @@ fun SettingsScreen(onNavigateBack: () -> Unit) {
             },
         )
     }
+}
+
+@Composable
+private fun SectionTitle(
+    icon: ImageVector,
+    title: String,
+    tint: Color = MaterialTheme.colorScheme.primary,
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = tint,
+            modifier = Modifier.size(22.dp).padding(end = 10.dp),
+        )
+        Text(
+            title,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+    }
+}
+
+@Composable
+private fun Hint(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(top = 8.dp),
+    )
 }
 
 private suspend fun calculateStorageSize(context: Context): String =
@@ -574,10 +572,8 @@ private suspend fun calculateStorageSize(context: Context): String =
 
         // Dulu di sini memakai context.getDir("receipts") yang menghasilkan
         // files/app_receipts, sedangkan ScanScreen menulis ke files/receipts.
-        // Direktorinya beda, jadi ukuran gambar struk tidak pernah ikut terhitung.
-        val imageBytes =
-            com.notarapi.tidynote.core.storage.ReceiptImages
-                .sizeBytes(context)
+        // Direktoriya beda, jadi ukuran gambar struk tidak pernah ikut terhitung.
+        val imageBytes = com.notarapi.tidynote.core.storage.ReceiptImages.sizeBytes(context)
 
         val totalSize = dbBytes + imageBytes
         when {
@@ -660,7 +656,7 @@ private fun saveCloudAiEnabled(
 }
 
 private object PasswordVisualTransformation : VisualTransformation {
-    override fun filter(text: AnnotatedString): androidx.compose.ui.text.input.TransformedText {
+    override fun filter(text: AnnotatedString): TransformedText {
         val masked = text.text.map { '•' }.joinToString("")
         val annotated = AnnotatedString(masked, text.spanStyles)
         val offsetMapping =
@@ -669,7 +665,6 @@ private object PasswordVisualTransformation : VisualTransformation {
 
                 override fun transformedToOriginal(offset: Int): Int = offset
             }
-        return androidx.compose.ui.text.input
-            .TransformedText(annotated, offsetMapping)
+        return TransformedText(annotated, offsetMapping)
     }
 }

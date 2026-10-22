@@ -31,7 +31,17 @@ class AppPreferences(
         }
     val currency: Flow<String> = context.prefsStore.data.map { it[KEY_CURRENCY] ?: "IDR" }
 
+    /**
+     * Pilihan tema disimpan sebagai nama enum (SYSTEM/LIGHT/DARK).
+     * Nilai tak dikenal — mis. enum dihapus di versi berikutnya — jatuh ke SYSTEM
+     * lewat [ThemeMode.fromStorage], bukan melempar.
+     */
+    val themeMode: Flow<ThemeMode> =
+        context.prefsStore.data.map { ThemeMode.fromStorage(it[KEY_THEME]) }
+
     fun setOnboardingDone(done: Boolean) = edit { it[KEY_ONBOARDING] = done }
+
+    fun setThemeMode(mode: ThemeMode) = edit { it[KEY_THEME] = mode.name }
 
     fun setCloudAiEnabled(enabled: Boolean) = edit { it[KEY_AI] = enabled }
 
@@ -88,6 +98,7 @@ class AppPreferences(
         private val KEY_TOKEN = stringPreferencesKey("llm_backend_token")
         private val KEY_LEGACY = stringPreferencesKey("llm_api_key")
         private val KEY_CURRENCY = stringPreferencesKey("currency")
+        private val KEY_THEME = stringPreferencesKey("theme_mode")
     }
 }
 

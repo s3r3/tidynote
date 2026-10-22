@@ -266,6 +266,10 @@ fun DateSection(
     onEdit: (ReceiptDraft) -> Unit,
 ) {
     var dateStr by remember(draft.transactionDate) { mutableStateOf(draft.transactionDate?.let { formatDate(it) } ?: "") }
+    // Di-set saat ketikan user ada isinya tapi belum bisa dibaca parser. Tanpa
+    // penanda ini, Save diam-diam memakai tanggal lama dan user tidak tahu
+    // nilainya tidak tersimpan.
+    var dateInvalid by remember(draft.transactionDate) { mutableStateOf(false) }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -286,17 +290,31 @@ fun DateSection(
                 // tanggal dan nilainya hilang begitu Save ditekan, tanpa peringatan.
                 // Sekarang setiap ketikan yang berhasil di-parse langsung disimpan ke
                 // draft. Ketikan setengah jadi (mis. "12 Jan") sengaja TIDAK menimpa
-                // nilai lama supaya tanggal yang sudah valid tidak berubah jadi sampah.
+                // nilai lama supaya tanggal yang sudah valid tidak berubah jadi sampah,
+                // tapi ditandai salah supaya user melihat bahwa ketikannya belum masuk.
                 onValueChange = {
                     dateStr = it
-                    parseDateInput(it)?.let { parsed ->
-                        onEdit(draft.copy(transactionDate = parsed))
+                    val parsed = parseDateInput(it)
+                    dateInvalid = parsed == null && it.isNotBlank()
+                    when {
+                        parsed != null -> onEdit(draft.copy(transactionDate = parsed))
+                        // Field dikosongkan = user memang ingin tanpa tanggal.
+                        // Dulu nilai lama tetap tersimpan diam-diam.
+                        it.isBlank() -> onEdit(draft.copy(transactionDate = null))
                     }
                 },
+                isError = dateInvalid,
                 label = { Text(stringResource(R.string.date_format_hint)) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
             )
+            if (dateInvalid) {
+                Text(
+                    stringResource(R.string.date_not_saved),
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.error,
+                    fontSize = 12.sp,
+                )
+            }
         }
     }
 }
@@ -325,8 +343,9 @@ fun CategorySection(
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                // Kategori tidak punya nilai confidence di model; sebelumnya badge
+                // di sini menampilkan confidence merchant, angka milik field lain.
                 Text(stringResource(R.string.category), fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                ConfidenceBadge(confidence = draft.confidence.merchant)
             }
             Spacer(modifier = Modifier.size(8.dp))
             androidx.compose.material3.ExposedDropdownMenuBox(
@@ -517,8 +536,19 @@ fun TotalsSection(
     }
 }
 
+/**
+ * Badge persentase confidence untuk satu field.
+ *
+ * Field tanpa confidence terukur tidak ditampilkan sama sekali.
+ * `getDraftForEdit` hanya bisa merekonstruksi rata-rata tersimpan (kolom
+ * `receipts.confidence`) dan mengisi field lain dengan 0f, jadi struk yang
+ * disunting dulu menampilkan badge "0%" untuk merchant dan tanggal — angka yang
+ * tidak pernah diukur dan menyesatkan. 0f di sini berarti "tidak diketahui",
+ * bukan "keyakinan nol": parser tidak pernah memberi nilai di bawah 0.2f.
+ */
 @Composable
 fun ConfidenceBadge(confidence: Float) {
+    if (confidence <= 0f) return
     val (color, icon) = ConfidenceColor.get(confidence)
     Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(icon, contentDescription = "Confidence", tint = color, modifier = Modifier.size(16.dp))

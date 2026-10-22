@@ -1,8 +1,14 @@
 package com.notarapi.tidynote.feature.onboarding
 
+import android.app.Activity
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
@@ -15,10 +21,18 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.notarapi.tidynote.core.model.ReceiptDraft
+import com.notarapi.tidynote.core.prefs.AppPreferences
+import com.notarapi.tidynote.core.prefs.ThemeMode
+import com.notarapi.tidynote.ui.design.Motion
+import com.notarapi.tidynote.ui.design.TidyTab
 import com.notarapi.tidynote.data.receipt.ReceiptRepository
 import com.notarapi.tidynote.extraction.ExtractionOrchestrator
 import com.notarapi.tidynote.extraction.scanner.ScannerHelper
@@ -39,11 +53,38 @@ object DraftHolder {
     var currentDraft: String? = null
 }
 
+/** Pindah tab: satu salinan di back stack, state tiap tab dipertahankan. */
+fun NavHostController.navigateTab(tab: TidyTab) {
+    navigate(tab.route) {
+        popUpTo("home") { saveState = true }
+        launchSingleTop = true
+        restoreState = true
+    }
+}
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Harus dipanggil sebelum setContent. Tanpa ini konten digambar di bawah
+        // status bar dan ikon status bar tidak bisa diatur dari Compose.
+        enableEdgeToEdge()
         setContent {
-            TidyNoteTheme {
+            val prefs: AppPreferences = koinInject()
+            val themeMode by prefs.themeMode.collectAsStateWithLifecycle(initialValue = ThemeMode.SYSTEM)
+            val dark = themeMode == ThemeMode.DARK || (themeMode == ThemeMode.SYSTEM && androidx.compose.foundation.isSystemInDarkTheme())
+
+            // Ikon status bar mengikuti tema. enableEdgeToEdge() saja tidak
+            // mengetahui pilihan user di dalam aplikasi.
+            val view = LocalView.current
+            LaunchedEffect(dark) {
+                val window = (view.context as Activity).window
+                WindowCompat.getInsetsController(window, view).apply {
+                    isAppearanceLightStatusBars = !dark
+                    isAppearanceLightNavigationBars = !dark
+                }
+            }
+
+            TidyNoteTheme(themeMode = themeMode) {
                 Surface {
                     val navController = rememberNavController()
                     val json = com.notarapi.tidynote.core.serialization.AppJson
@@ -54,17 +95,23 @@ class MainActivity : ComponentActivity() {
                                 .getSharedPreferences("tidynote_prefs", android.content.Context.MODE_PRIVATE)
                                 .getBoolean("onboarding_done", false)
                         }
-                    NavHost(navController, startDestination = if (onboardingDone) "home" else "onboarding") {
+                    // Transisi netral fade + zoom tipis: cocok untuk tab maupun
+                    // layar bertumpuk. Slide horizontal terasa salah untuk tab.
+                    val enter = fadeIn(tween(Motion.FAST)) + scaleIn(tween(Motion.FAST), initialScale = 0.98f)
+                    val exit = fadeOut(tween(Motion.FAST))
+                    NavHost(
+                        navController,
+                        startDestination = if (onboardingDone) "home" else "onboarding",
+                        enterTransition = { enter },
+                        exitTransition = { exit },
+                        popEnterTransition = { enter },
+                        popExitTransition = { exit },
+                    ) {
                         composable("home") {
                             HomeScreen(
                                 onScan = { navController.navigate("scan") },
-                                onHistory = { navController.navigate("history") },
-                                // Tombol "Periksa N struk" harus membuka Riwayat
-                                // yang benar-benar tersaring ke PENDING, bukan
-                                // semua struk seperti sebelumnya.
                                 onReviewPending = { navController.navigate("history?status=PENDING") },
-                                onDashboard = { navController.navigate("dashboard") },
-                                onSettings = { navController.navigate("settings") },
+                                onNavigateTab = { navController.navigateTab(it) },
                                 onOpenReceipt = { id -> navController.navigate("detail/$id") },
                             )
                         }
@@ -82,9 +129,6 @@ class MainActivity : ComponentActivity() {
                                     DraftHolder.currentDraft = json.encodeToString(ReceiptDraft.serializer(), draft)
                                     navController.navigate("review")
                                 },
-                                onNavigateToHistory = { navController.navigate("history") },
-                                onNavigateToSettings = { navController.navigate("settings") },
-                                onNavigateToDashboard = { navController.navigate("dashboard") },
                             )
                         }
                         // Mode edit: buka struk yang SUDAH tersimpan di layar Review.
@@ -209,7 +253,8 @@ class MainActivity : ComponentActivity() {
                                 ),
                         ) { entry ->
                             HistoryScreen(
-                                onNavigateBack = { navController.popBackStack() },
+                                onScan = { navController.navigate("scan") },
+                                onNavigateTab = { navController.navigateTab(it) },
                                 onOpenReceipt = { id -> navController.navigate("detail/$id") },
                                 initialStatus = entry.arguments?.getString("status") ?: "ALL",
                             )
@@ -267,10 +312,16 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         composable("dashboard") {
-                            DashboardScreen(onNavigateBack = { navController.popBackStack() })
+                            DashboardScreen(
+                                onScan = { navController.navigate("scan") },
+                                onNavigateTab = { navController.navigateTab(it) },
+                            )
                         }
                         composable("settings") {
-                            SettingsScreen(onNavigateBack = { navController.popBackStack() })
+                            SettingsScreen(
+                                onScan = { navController.navigate("scan") },
+                                onNavigateTab = { navController.navigateTab(it) },
+                            )
                         }
                     }
                 }

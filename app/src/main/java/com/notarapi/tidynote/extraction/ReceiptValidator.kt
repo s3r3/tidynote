@@ -1,5 +1,6 @@
 package com.notarapi.tidynote.extraction
 
+import com.notarapi.tidynote.core.model.RECONCILIATION_TOLERANCE_MINOR
 import com.notarapi.tidynote.core.model.ReceiptDraft
 import java.time.Instant
 
@@ -12,8 +13,6 @@ import java.time.Instant
  * Menurunkan confidence field yang gagal validasi, tidak melempar.
  */
 object ReceiptValidator {
-    private const val TOTAL_TOLERANCE_MINOR = 5L
-
     // Ambang confidence dipakai di beberapa tempat dan nilainya menentukan
     // apakah sebuah struk masuk antrian "Perlu ditinjau". Sebelumnya angka ini
     // tersebar sebagai literal 0.2f/0.3f/0.5f, jadi mengubah satu kebijakan
@@ -47,13 +46,15 @@ object ReceiptValidator {
         if (negatives) totalConf = minOf(totalConf, CONF_SUSPECT)
 
         // 3. Rekonsiliasi subtotal + pajak - diskon vs total.
+        // Dasar hitung dan ambangnya sama dengan `ReceiptDraft.isReconciled`;
+        // dulu keduanya punya salinan sendiri dan bisa menyimpulkan berbeda.
         val computed =
-            (draft.subtotalMinor ?: draft.itemSumMinor) +
+            draft.reconciliationBaseMinor +
                 (draft.taxMinor ?: 0L) - (draft.discountMinor ?: 0L)
         val total = draft.totalMinor
         if (total != null && total > 0) {
             val diff = kotlin.math.abs(computed - total)
-            if (diff > TOTAL_TOLERANCE_MINOR && draft.items.isNotEmpty()) {
+            if (diff > RECONCILIATION_TOLERANCE_MINOR && draft.items.isNotEmpty()) {
                 totalConf = minOf(totalConf, CONF_NEEDS_CHECK)
             }
         } else if (total != null && total <= 0) {

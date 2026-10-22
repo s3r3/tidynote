@@ -2,32 +2,19 @@ package com.notarapi.tidynote.feature.home
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BarChart
-import androidx.compose.material.icons.filled.DocumentScanner
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -43,6 +30,14 @@ import com.notarapi.tidynote.core.util.formatCurrency
 import com.notarapi.tidynote.core.util.formatDate
 import com.notarapi.tidynote.data.receipt.DashboardSummary
 import com.notarapi.tidynote.data.receipt.ReceiptRepository
+import com.notarapi.tidynote.ui.design.EmptyState
+import com.notarapi.tidynote.ui.design.SectionHeader
+import com.notarapi.tidynote.ui.design.StatCard
+import com.notarapi.tidynote.ui.design.StatusChip
+import com.notarapi.tidynote.ui.design.TidyCard
+import com.notarapi.tidynote.ui.design.TidyTab
+import com.notarapi.tidynote.ui.design.TidyTabScaffold
+import com.notarapi.tidynote.ui.design.staggerIn
 import kotlinx.coroutines.flow.collectLatest
 import org.koin.compose.koinInject
 import java.time.LocalDate
@@ -51,15 +46,12 @@ import java.time.ZoneId
 /** Struk terbaru yang ditampilkan di beranda. */
 private const val RECENT_LIMIT = 5
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     onScan: () -> Unit,
-    onHistory: () -> Unit,
     /** Membuka Riwayat yang sudah tersaring ke PENDING. */
     onReviewPending: () -> Unit,
-    onDashboard: () -> Unit,
-    onSettings: () -> Unit,
+    onNavigateTab: (TidyTab) -> Unit,
     onOpenReceipt: (Long) -> Unit,
 ) {
     val repository: ReceiptRepository = koinInject()
@@ -74,14 +66,9 @@ fun HomeScreen(
                 .toEpochMilli()
         }
 
-    // Dulu ringkasan dimuat SEKALI di dalam LaunchedEffect(startOfMonth).
-    // `startOfMonth` di-remember dan tidak pernah berubah, jadi kembali dari
-    // Simpan/Hapus lewat popBackStack tidak memicu pemuatan ulang: "Total bulan
-    // ini" dan "N struk" menampilkan data sebelum perubahan.
-    //
-    // Room sudah memancarkan ulang Flow setiap tabel berubah, jadi tidak perlu
-    // refresh manual. Ringkasan dihitung ulang di dalam collectLatest yang sama
-    // supaya angka dan daftar tidak pernah tidak sinkron.
+    // Ringkasan dihitung ulang di dalam collectLatest yang sama dengan daftar
+    // supaya angka dan baris tidak pernah tidak sinkron. Room sudah memancarkan
+    // ulang setiap tabel berubah, jadi tidak perlu refresh manual.
     var summary by remember { mutableStateOf(DashboardSummary()) }
     var recent by remember { mutableStateOf<List<ReceiptEntity>>(emptyList()) }
     LaunchedEffect(startOfMonth) {
@@ -91,78 +78,122 @@ fun HomeScreen(
                 try {
                     repository.getDashboardSummary(startOfMonth, null)
                 } catch (_: Exception) {
-                    // Jangan biarkan kegagalan query mematikan layar.
+                    // Kegagalan query tidak boleh mematikan layar.
                     DashboardSummary()
                 }
         }
     }
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("TidyNote") },
-                actions = {
-                    IconButton(onClick = onDashboard) { Icon(Icons.Default.BarChart, contentDescription = "Ringkasan") }
-                    IconButton(onClick = onSettings) { Icon(Icons.Default.Settings, contentDescription = "Pengaturan") }
-                },
-            )
-        },
+
+    TidyTabScaffold(
+        title = "TidyNote",
+        selected = TidyTab.HOME,
+        onNavigateTab = onNavigateTab,
+        onScan = onScan,
     ) { padding ->
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .padding(16.dp)
-                    .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+        // Seluruh layar satu LazyColumn: daftar panjang di dalam Column yang
+        // di-scroll akan membuat scroll bersarang.
+        LazyColumn(
+            modifier = Modifier.fillMaxWidth().padding(padding),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Button(onClick = onScan, modifier = Modifier.fillMaxWidth().height(56.dp)) {
-                Icon(Icons.Default.DocumentScanner, contentDescription = "Pindai struk")
-                Spacer(Modifier.size(8.dp))
-                Text("Pindai struk", fontWeight = FontWeight.Bold)
+            item {
+                StatCard(
+                    label = "Total bulan ini",
+                    value = formatCurrency(summary.totalRupiah),
+                    caption = "${summary.count} struk",
+                    icon = Icons.AutoMirrored.Filled.TrendingUp,
+                    accent = true,
+                    modifier = Modifier.fillMaxWidth().staggerIn(0),
+                )
             }
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer),
-            ) {
-                Column(Modifier.padding(20.dp)) {
-                    Text("Total bulan ini")
-                    Text(
-                        formatCurrency(summary.totalRupiah),
-                        style = androidx.compose.material3.MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Text("${summary.count} struk")
-                }
-            }
+
             if (summary.pendingCount > 0) {
-                OutlinedButton(
-                    onClick = onReviewPending,
-                    modifier = Modifier.fillMaxWidth(),
-                ) { Text("Periksa ${summary.pendingCount} struk") }
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text("Transaksi terbaru", fontWeight = FontWeight.Bold)
-                OutlinedButton(onClick = onHistory) {
-                    Icon(Icons.Default.History, contentDescription = "Riwayat")
-                    Spacer(Modifier.size(4.dp))
-                    Text("Riwayat")
-                }
-            }
-            LazyColumn(modifier = Modifier.fillMaxWidth().height(320.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(recent, key = { it.id }) { r ->
-                    Card(onClick = { onOpenReceipt(r.id) }, modifier = Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(12.dp)) {
-                            Text(formatCurrency(r.totalMinor ?: 0), fontWeight = FontWeight.Bold)
-                            Text("${formatDate(r.transactionDate)} - ${r.reviewStatus}")
+                item {
+                    TidyCard(
+                        onClick = onReviewPending,
+                        modifier = Modifier.fillMaxWidth().staggerIn(1),
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    "Periksa ${summary.pendingCount} struk",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                                Text(
+                                    "Ada struk yang belum kamu cek",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            StatusChip(status = "PENDING")
                         }
                     }
                 }
             }
+
+            item {
+                SectionHeader(
+                    title = "Transaksi terbaru",
+                    actionLabel = "Lihat semua",
+                    onAction = { onNavigateTab(TidyTab.HISTORY) },
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+            }
+
+            if (recent.isEmpty()) {
+                item {
+                    EmptyState(
+                        icon = Icons.AutoMirrored.Filled.ReceiptLong,
+                        title = "Belum ada struk",
+                        message = "Scan struk pertamamu lewat tombol di bawah.",
+                    )
+                }
+            } else {
+                itemsIndexed(recent, key = { _, r -> r.id }) { index, r ->
+                    RecentReceiptRow(
+                        receipt = r,
+                        onClick = { onOpenReceipt(r.id) },
+                        modifier = Modifier.staggerIn(index + 2),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecentReceiptRow(
+    receipt: ReceiptEntity,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    TidyCard(onClick = onClick, modifier = modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    formatCurrency(receipt.totalMinor ?: 0),
+                    style =
+                        MaterialTheme.typography.titleMedium.copy(
+                            fontFeatureSettings = "tnum",
+                        ),
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    formatDate(receipt.transactionDate),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(Modifier.width(8.dp))
+            StatusChip(status = receipt.reviewStatus)
         }
     }
 }

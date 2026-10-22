@@ -37,6 +37,11 @@ class TidyNoteApplication : Application() {
     companion object {
         val appModule =
             module {
+                // AppDatabase harus terdaftar: ReceiptRepositoryImpl menerimanya
+                // sebagai parameter ketiga, dan tanpa bean ini Koin melempar
+                // NoBeanDefFoundException saat HomeScreen pertama kali resolve
+                // repository — aplikasi crash tepat setelah onboarding.
+                single<AppDatabase> { AppDatabase.get(get()) }
                 single<ReceiptDao> { AppDatabase.get(get()).receiptDao() }
                 // get() kedua = Context (Android). Diperlukan supaya deleteAll() bisa
                 // ikut menghapus file gambar struk, bukan cuma baris database.

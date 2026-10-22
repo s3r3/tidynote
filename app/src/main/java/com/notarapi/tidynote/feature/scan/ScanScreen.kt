@@ -10,11 +10,9 @@ import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -28,14 +26,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.DocumentScanner
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Photo
-import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -55,11 +50,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.notarapi.tidynote.R
@@ -78,9 +73,6 @@ fun ScanScreen(
     orchestrator: ExtractionOrchestrator,
     onNavigateBack: () -> Unit,
     onNavigateToReview: (ReceiptDraft) -> Unit,
-    onNavigateToHistory: () -> Unit,
-    onNavigateToSettings: () -> Unit,
-    onNavigateToDashboard: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val activity = context as? Activity
@@ -162,71 +154,47 @@ fun ScanScreen(
                 },
                 colors =
                     TopAppBarDefaults.topAppBarColors(
-                        containerColor = androidx.compose.material3.MaterialTheme.colorScheme.primary,
-                        titleContentColor = androidx.compose.material3.MaterialTheme.colorScheme.onPrimary,
-                        navigationIconContentColor = androidx.compose.material3.MaterialTheme.colorScheme.onPrimary,
+                        containerColor = MaterialTheme.colorScheme.surface,
                     ),
             )
-        },
-        bottomBar = {
-            Row(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .height(56.dp)
-                        .background(color = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainer),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                BottomNavItem(
-                    icon = Icons.Default.DocumentScanner,
-                    label = stringResource(R.string.scan_receipt),
-                    selected = true,
-                    onClick = { /* already on scan */ },
-                )
-                BottomNavItem(
-                    icon = Icons.Default.ReceiptLong,
-                    label = stringResource(R.string.view_history),
-                    selected = false,
-                    onClick = onNavigateToHistory,
-                )
-                BottomNavItem(
-                    icon = Icons.Default.BarChart,
-                    label = stringResource(R.string.monthly_summary),
-                    selected = false,
-                    onClick = onNavigateToDashboard,
-                )
-                BottomNavItem(
-                    icon = Icons.Default.Settings,
-                    label = stringResource(R.string.settings),
-                    selected = false,
-                    onClick = onNavigateToSettings,
-                )
-            }
         },
     ) { padding ->
         if (capturedBitmap == null) {
             Box(
-                modifier = Modifier.fillMaxSize().padding(padding),
+                modifier = Modifier.fillMaxSize().padding(padding).padding(24.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        Icons.Default.DocumentScanner,
-                        contentDescription = null,
-                        modifier = Modifier.size(96.dp),
-                        tint = androidx.compose.material3.MaterialTheme.colorScheme.primary,
-                    )
-                    Spacer(Modifier.height(24.dp))
+                    Box(
+                        modifier =
+                            Modifier
+                                .size(128.dp)
+                                .background(
+                                    MaterialTheme.colorScheme.primaryContainer,
+                                    RoundedCornerShape(percent = 50),
+                                ),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            Icons.Default.DocumentScanner,
+                            contentDescription = null,
+                            modifier = Modifier.size(64.dp),
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        )
+                    }
+                    Spacer(Modifier.height(28.dp))
                     Text(
                         stringResource(R.string.place_receipt),
-                        style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        textAlign = TextAlign.Center,
                     )
                     Spacer(Modifier.height(8.dp))
                     Text(
                         stringResource(R.string.auto_detect),
-                        style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
-                        color = androidx.compose.material3.MaterialTheme.colorScheme.outline,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
                     )
                     Spacer(Modifier.height(32.dp))
                     Button(
@@ -242,13 +210,13 @@ fun ScanScreen(
                                 }
                             }
                         },
-                        modifier = Modifier.fillMaxWidth(0.7f),
+                        modifier = Modifier.fillMaxWidth(),
                         enabled = !isProcessing,
                     ) {
                         if (isProcessing) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(20.dp),
-                                color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimary,
+                                color = MaterialTheme.colorScheme.onPrimary,
                             )
                             Spacer(Modifier.width(8.dp))
                         }
@@ -256,7 +224,7 @@ fun ScanScreen(
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(R.string.open_scanner))
                     }
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(12.dp))
                     OutlinedButton(
                         onClick = {
                             galleryError = null
@@ -264,7 +232,7 @@ fun ScanScreen(
                                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
                             )
                         },
-                        modifier = Modifier.fillMaxWidth(0.7f),
+                        modifier = Modifier.fillMaxWidth(),
                         enabled = !isProcessing,
                     ) {
                         Icon(Icons.Default.Photo, contentDescription = "Pilih dari galeri")
@@ -275,9 +243,9 @@ fun ScanScreen(
                         Spacer(Modifier.height(12.dp))
                         Text(
                             msg,
-                            color = androidx.compose.material3.MaterialTheme.colorScheme.error,
+                            color = MaterialTheme.colorScheme.error,
                             fontSize = 13.sp,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            textAlign = TextAlign.Center,
                             modifier = Modifier.fillMaxWidth(0.9f),
                         )
                     }
@@ -360,38 +328,6 @@ fun ScanScreen(
                 Spacer(modifier = Modifier.height(16.dp))
             }
         }
-    }
-}
-
-@Composable
-private fun androidx.compose.foundation.layout.RowScope.BottomNavItem(
-    icon: ImageVector,
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-) {
-    Column(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .height(IntrinsicSize.Max)
-                .weight(1f)
-                .clickable { onClick() }
-                .padding(vertical = 8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Icon(
-            icon,
-            contentDescription = label,
-            tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.height(4.dp))
-        Text(
-            label,
-            fontSize = 12.sp,
-            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-        )
     }
 }
 

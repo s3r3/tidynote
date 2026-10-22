@@ -6,6 +6,13 @@ import kotlinx.serialization.Contextual
 import kotlinx.serialization.Serializable
 import java.time.Instant
 
+/**
+ * Toleransi pembulatan rekonsiliasi (Rp5), dipakai bersama oleh
+ * [ReceiptDraft.isReconciled] dan `ReceiptValidator` supaya keduanya tidak
+ * pernah menyimpulkan status yang berbeda untuk struk yang sama.
+ */
+const val RECONCILIATION_TOLERANCE_MINOR = 5L
+
 @Serializable
 @Parcelize
 enum class ExtractionSource : Parcelable {
@@ -74,18 +81,33 @@ data class ReceiptDraft(
     val itemSumMinor: Long
         get() = items.sumOf { it.lineTotal }
 
+    /**
+     * Dasar hitung rekonsiliasi: subtotal yang tercetak kalau ada, kalau tidak
+     * jumlah item.
+     *
+     * `subtotalMinor = 0` diperlakukan sebagai "tidak diisi", bukan angka sah:
+     * layar Review menulis 0 ketika field-nya dikosongkan, dan `ReceiptValidator`
+     * sejak awal memakai fallback yang sama (`subtotalMinor ?: itemSumMinor`).
+     * Sebelumnya `isReconciled` hanya menjumlah item, jadi struk yang subtotal
+     * cetaknya cocok tetap ditandai selisih hanya karena ada baris item yang
+     * tidak terbaca OCR.
+     */
+    val reconciliationBaseMinor: Long
+        get() = subtotalMinor?.takeIf { it > 0 } ?: itemSumMinor
+
+    /**
+     * Selisih di bawah [RECONCILIATION_TOLERANCE_MINOR] dianggap pembulatan.
+     *
+     * Toleransi yang sama dipakai `ReceiptValidator`; dua ambang berbeda membuat
+     * status tersimpan bertentangan dengan peringatan yang dilihat user.
+     */
     val isReconciled: Boolean
         get() {
-            val itemSum = itemSumMinor
-            val tax = taxMinor ?: 0L
-            val discount = discountMinor ?: 0L
-            val computed = itemSum + tax - discount
-            val total = totalMinor
-            return when {
-                total == null -> false
-                total == computed -> true
-                else -> false
-            }
+            val total = totalMinor ?: return false
+            if (total <= 0) return false
+            if (reconciliationBaseMinor <= 0) return false
+            val computed = reconciliationBaseMinor + (taxMinor ?: 0L) - (discountMinor ?: 0L)
+            return kotlin.math.abs(computed - total) <= RECONCILIATION_TOLERANCE_MINOR
         }
 
     /**

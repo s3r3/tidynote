@@ -1,27 +1,23 @@
 package com.notarapi.tidynote.feature.dashboard
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Scaffold
+import androidx.compose.material.icons.filled.Insights
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -30,6 +26,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -37,6 +36,15 @@ import com.notarapi.tidynote.R
 import com.notarapi.tidynote.core.util.formatCurrency
 import com.notarapi.tidynote.data.receipt.DashboardSummary
 import com.notarapi.tidynote.data.receipt.ReceiptRepository
+import com.notarapi.tidynote.ui.design.EmptyState
+import com.notarapi.tidynote.ui.design.Motion
+import com.notarapi.tidynote.ui.design.SectionHeader
+import com.notarapi.tidynote.ui.design.StatCard
+import com.notarapi.tidynote.ui.design.TidyCard
+import com.notarapi.tidynote.ui.design.TidyTab
+import com.notarapi.tidynote.ui.design.TidyTabScaffold
+import com.notarapi.tidynote.ui.design.staggerIn
+import com.notarapi.tidynote.ui.theme.ChartPalette
 import kotlinx.coroutines.flow.collectLatest
 import org.koin.compose.koinInject
 import java.time.LocalDate
@@ -45,9 +53,11 @@ import java.time.ZoneId
 /** Struk yang diambil untuk menghitung ringkasan bulan ini. */
 private const val RECENT_LIMIT = 50
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DashboardScreen(onNavigateBack: () -> Unit) {
+fun DashboardScreen(
+    onScan: () -> Unit,
+    onNavigateTab: (TidyTab) -> Unit,
+) {
     val repository: ReceiptRepository = koinInject()
     val zone = ZoneId.systemDefault()
     val startOfMonth =
@@ -78,74 +88,59 @@ fun DashboardScreen(onNavigateBack: () -> Unit) {
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.monthly_summary)) },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back))
-                    }
-                },
-                colors =
-                    TopAppBarDefaults.topAppBarColors(
-                        containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainer,
-                    ),
-            )
-        },
+    TidyTabScaffold(
+        title = stringResource(R.string.monthly_summary),
+        selected = TidyTab.DASHBOARD,
+        onNavigateTab = onNavigateTab,
+        onScan = onScan,
     ) { padding ->
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .padding(16.dp)
-                    .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+        LazyColumn(
+            modifier = Modifier.fillMaxWidth().padding(padding),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors =
-                    CardDefaults.cardColors(
-                        containerColor = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer,
-                    ),
-            ) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Text(
-                        stringResource(R.string.total_this_month),
-                        style = androidx.compose.material3.MaterialTheme.typography.labelLarge,
-                    )
-                    Text(
-                        formatCurrency(summary.totalRupiah),
-                        style = androidx.compose.material3.MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Text(
-                        "${summary.count} struk • ${summary.pendingCount} perlu diperiksa",
-                        style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+            item {
+                StatCard(
+                    label = stringResource(R.string.total_this_month),
+                    value = formatCurrency(summary.totalRupiah),
+                    caption = "${summary.count} struk • ${summary.pendingCount} perlu diperiksa",
+                    icon = Icons.Default.Insights,
+                    accent = true,
+                    modifier = Modifier.fillMaxWidth().staggerIn(0),
+                )
+            }
+
+            if (summary.count == 0) {
+                item {
+                    EmptyState(
+                        icon = Icons.AutoMirrored.Filled.ReceiptLong,
+                        title = "Belum ada data bulan ini",
+                        message = "Scan struk pertamamu, ringkasan akan muncul di sini.",
+                        actionLabel = "Scan sekarang",
+                        onAction = onScan,
                     )
                 }
             }
 
             if (summary.byCategory.isNotEmpty()) {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Per kategori", fontWeight = FontWeight.Bold)
-                        Spacer(Modifier.height(12.dp))
-                        CategoryDonut(
-                            values = summary.byCategory.map { it.total },
-                            modifier = Modifier.size(140.dp).align(Alignment.CenterHorizontally),
-                        )
-                        Spacer(Modifier.height(12.dp))
-                        summary.byCategory.forEach { row ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                            ) {
-                                // Dulu menampilkan "Kategori ${row.categoryId}" — id
-                                // mentah dari database, bukan nama yang bisa dibaca.
-                                Text(row.categoryName ?: "Tanpa kategori")
-                                Text(formatCurrency(row.total), fontWeight = FontWeight.Medium)
+                item {
+                    TidyCard(modifier = Modifier.fillMaxWidth().staggerIn(1)) {
+                        Column(Modifier.padding(20.dp)) {
+                            SectionHeader(title = "Per kategori")
+                            Spacer(Modifier.height(16.dp))
+                            CategoryDonut(
+                                values = summary.byCategory.map { it.total },
+                                modifier = Modifier.size(150.dp).align(Alignment.CenterHorizontally),
+                            )
+                            Spacer(Modifier.height(16.dp))
+                            summary.byCategory.forEachIndexed { index, row ->
+                                CategoryLegendRow(
+                                    color = ChartPalette[index % ChartPalette.size],
+                                    // Dulu menampilkan "Kategori ${row.categoryId}" —
+                                    // id mentah dari database, bukan nama yang bisa dibaca.
+                                    label = row.categoryName ?: "Tanpa kategori",
+                                    amount = row.total,
+                                )
                             }
                         }
                     }
@@ -153,23 +148,36 @@ fun DashboardScreen(onNavigateBack: () -> Unit) {
             }
 
             if (summary.topMerchants.isNotEmpty()) {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Top merchant", fontWeight = FontWeight.Bold)
-                        Spacer(Modifier.height(8.dp))
-                        summary.topMerchants.forEach { m ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(m.merchantName ?: "Tidak dikenal", fontWeight = FontWeight.Medium)
+                item {
+                    TidyCard(modifier = Modifier.fillMaxWidth().staggerIn(2)) {
+                        Column(Modifier.padding(20.dp)) {
+                            SectionHeader(title = "Top merchant")
+                            Spacer(Modifier.height(8.dp))
+                            summary.topMerchants.forEach { m ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            m.merchantName ?: "Tidak dikenal",
+                                            style = MaterialTheme.typography.titleSmall,
+                                            fontWeight = FontWeight.Medium,
+                                        )
+                                        Text(
+                                            "${m.count}x transaksi",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
                                     Text(
-                                        "${m.count}x transaksi",
-                                        style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                                        formatCurrency(m.total),
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(start = 12.dp),
                                     )
                                 }
-                                Text(formatCurrency(m.total), fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -180,40 +188,55 @@ fun DashboardScreen(onNavigateBack: () -> Unit) {
 }
 
 @Composable
+private fun CategoryLegendRow(
+    color: Color,
+    label: String,
+    amount: Long,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Canvas(Modifier.size(10.dp)) { drawCircle(color) }
+        Text(
+            label,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.weight(1f).padding(start = 8.dp),
+        )
+        Text(
+            formatCurrency(amount),
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Medium,
+        )
+    }
+}
+
+@Composable
 private fun CategoryDonut(
     values: List<Long>,
     modifier: Modifier = Modifier,
 ) {
     val total = values.sum().coerceAtLeast(1L).toFloat()
-    val colors =
-        listOf(
-            androidx.compose.ui.graphics
-                .Color(0xFF4CAF50),
-            androidx.compose.ui.graphics
-                .Color(0xFF2196F3),
-            androidx.compose.ui.graphics
-                .Color(0xFFFF9800),
-            androidx.compose.ui.graphics
-                .Color(0xFF9C27B0),
-            androidx.compose.ui.graphics
-                .Color(0xFFF44336),
-            androidx.compose.ui.graphics
-                .Color(0xFF607D8B),
-        )
-    androidx.compose.foundation.Canvas(modifier = modifier) {
+    // Sweep dianimasikan sekali saat data tiba: donut tumbuh dari nol, bukan
+    // muncul mendadak. Animatable (bukan animateFloatAsState) supaya nilai
+    // awalnya benar-benar 0 sebelum frame pertama.
+    val progress = remember { Animatable(0f) }
+    LaunchedEffect(values) {
+        progress.snapTo(0f)
+        progress.animateTo(1f, tween(Motion.SLOW, easing = Motion.EaseOutCubic))
+    }
+
+    Canvas(modifier = modifier) {
+        val stroke = Stroke(width = size.minDimension * 0.2f, cap = StrokeCap.Butt)
         var startAngle = -90f
         values.forEachIndexed { i, v ->
-            val sweep = (v.toFloat() / total) * 360f
+            val sweep = (v.toFloat() / total) * 360f * progress.value
             drawArc(
-                color = colors[i % colors.size],
+                color = ChartPalette[i % ChartPalette.size],
                 startAngle = startAngle,
                 sweepAngle = sweep,
                 useCenter = false,
-                style =
-                    androidx.compose.ui.graphics.drawscope.Stroke(
-                        width = 28f,
-                        cap = androidx.compose.ui.graphics.StrokeCap.Butt,
-                    ),
+                style = stroke,
             )
             startAngle += sweep
         }

@@ -17,6 +17,7 @@
     <string name="npwp">NPWP</string>
     <string name="date">Tanggal</string>
     <string name="date_format_hint">dd/MM/yyyy</string>
+    <string name="date_not_saved">Tanggal belum terbaca. Perbaiki formatnya atau nilai lama yang akan disimpan.</string>
     <string name="total">Total</string>
     <string name="items">Item</string>
     <string name="category">Kategori</string>
@@ -64,9 +65,9 @@
 
     <!-- Onboarding strings -->
     <string name="onboarding_subtitle">Pencatat belanja offline-first untuk UMKM Indonesia</string>
-    <string name="onboarding_feature_1">📷 Scan struk dengan ML Kit (offline)</string>
-    <string name="onboarding_feature_2">🇮🇩 Parser Indonesia: IDR, NPWP, PPN 11%</string>
-    <string name="onboarding_feature_3">🔒 Data tetap di perangkat, tanpa akun</string>
+    <string name="onboarding_feature_1">Scan struk dengan ML Kit (offline)</string>
+    <string name="onboarding_feature_2">Parser Indonesia: IDR, NPWP, PPN 11%</string>
+    <string name="onboarding_feature_3">Data tetap di perangkat, tanpa akun</string>
     <string name="get_started">Mulai</string>
 
     <!-- Review strings -->
